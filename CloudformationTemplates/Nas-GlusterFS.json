@@ -1,7 +1,3 @@
-glusterfs / glusterfs.template
-yokota-shinsuke yokota-shinsuke on Dec 22, 2013 Initial commit
-1 contributor
-447 lines (436 sloc)  16.755 kb RawBlameHistory   
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "GlusterFS storage cluster CloudFormation template file.",
