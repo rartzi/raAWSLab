@@ -36,6 +36,6 @@ mkdir /home/$user/.ssh
 chmod 700 /home/$user/.ssh
 cat $path_to_public_key > /home/$user/.ssh/authorized_keys
 chmod 600 /home/$user/.ssh/authorized_keys
-cat /home/$user/.ssh/authorized_keys
 chown $user /home/$user/.ssh/authorized_keys
 chown $user:ec2-user /home/$user/.ssh
+echo "Done: check that you can ssh as $user with your private key" 

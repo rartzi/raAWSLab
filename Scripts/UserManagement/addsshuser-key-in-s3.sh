@@ -35,6 +35,6 @@ chmod 700 /home/$user/.ssh
 aws s3 cp s3://RDI-DevOps/PublicKeys/$user.pub
 cat $user.pub> /home/$user/.ssh/authorized_keys
 chmod 600 /home/$user/.ssh/authorized_keys
-cat /home/$user/.ssh/authorized_keys
 chown $user /home/$user/.ssh/authorized_keys
 chown $user:ec2-user /home/$user/.ssh
+echo "Done: check that you can ssh as $user with your private key" 
