@@ -5,7 +5,13 @@
 #
 # This Script is still under development and should be treated as such
 #
-
+#
+# Known Bugs Aug 24 2014
+#
+#  Ubuntu MDADM installation does not pass as it is trying to install Postfix ( some kind of email notifications ) which goes into interactive more
+#  Ubunto umount command does not have the option of umount -A - to release all target FS on devices we will have to look at :
+#
+#
 METADATA_URL_BASE="http://169.254.169.254/2012-01-12"
 
 # Install MDAM - It is now the standard RAID management tool and should be found in any modern distribution
@@ -62,7 +68,7 @@ fi
 # Unmound all ephemeral disks if mounted on this instance
 # this does not work for Ubunto as it umount command does not support -A option.
 for drive in $drives; do
-  umount -A drive
+  umount -A $drive
 done
 
 # overwrite first few blocks in case there is a filesystem, otherwise mdadm will prompt for input
