@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "AWS CloudFormation Sample Template VPC_with_PublicIPs_And_DNS.template: Sample template showing how to create a multi-tier VPC with multiple subnets DNS support. The instances have automatic public IP addresses assigned. The first subnet is public and contains a NAT device for internet access from the private subnet and a bastion host to allow SSH access to the hosts in the private subnet. You will be billed for the AWS resources used if you create a stack from this template.",
+  "Description" : "AWS CloudFormation Template to create a multi Tiered  RnD Cloud Virtual Data Center with Public , DMZ and Private Subnets. \n The public subnets are provided with contains a NAT device for internet access from the private subnet.  A bastion host will be created to allow SSH access to the hosts in the private subnet.\n You will be billed for the AWS resources used if you create a stack from this template.",
 
   "Parameters" : {
   
@@ -253,7 +253,8 @@
         	]
       }
     },
-	"InboundHTTP80PublicNetworkAclEntry" : {
+    
+	"InboundDNS53PublicNetworkAclEntry" : {
       "Type" : "AWS::EC2::NetworkAclEntry",
       "Properties" : {
         "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
@@ -262,7 +263,7 @@
         "RuleAction" : "allow",
         "Egress" : "false",
         "CidrBlock" : "0.0.0.0/0",
-        "PortRange" : { "From" : "80", "To" : "80" }
+        "PortRange" : { "From" : "53", "To" : "53" }
       }
     },
 	"InboundHTTP8080PublicNetworkAclEntry" : {
