@@ -1,0 +1,115 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	
+	"Resources": {
+	
+		"SiteAdminsGroup" : {
+   			"Type": "AWS::IAM::Group",
+   			"Properties": {
+      			"Path": "/"
+   			} 
+		},
+		"UsersAdminsGroup" : {
+   			"Type": "AWS::IAM::Group",
+   			"Properties": {
+      			"Path": "/"
+   			} 
+		},		
+		"NetworkdminsGroup" : {
+   			"Type": "AWS::IAM::Group",
+   			"Properties": {
+      			"Path": "/"
+   			} 
+		},
+
+		
+   		"SiteAdministratorsPolicy" : {
+   		"Type" : "AWS::IAM::Policy",
+   		"Properties" : {
+      		"PolicyName" : "SiteAdministratorsPolicy",
+      		"PolicyDocument" : {
+  				"Version": "2012-10-17",
+  				"Statement": [{
+    			"Effect": "Allow",
+    			"Action": ["*"],
+   				 "Resource": ["*"]
+  				}]		
+      		},
+      		 "Groups" : [  { "Ref" : "SiteAdminsGroup" } ]
+
+   		}
+	},				
+   		"UsersAdministratorsPolicy" : {
+   		"Type" : "AWS::IAM::Policy",
+   		"Properties" : {
+      		"PolicyName" : "UsersAdministratorsPolicy",
+      		"PolicyDocument" : {
+				"Version": "2012-10-17",
+  				"Statement": [
+    				{
+      				"Sid": "AllowUsersToPerformUserActions",
+      				"Effect": "Allow",
+      				"Action": [
+        				"iam:*User",
+        				"iam:ListUsers",
+        				"iam:*UserPolicy",
+        				"iam:ListGroupsForUser",
+        				"iam:ListUserPolicies",
+        				"iam:*LoginProfile",
+        				"iam:*AccessKey*",
+        				"iam:*SigningCertificate*",
+        				"iam:*MFADevice*"
+      				],
+      				"Resource": ["*"]
+    				},
+    				{
+      				"Sid": "AllowUsersToDeleteUserFromGroup",
+      				"Effect": "Allow",
+      				"Action": ["iam:RemoveUserFromGroup"],
+      				"Resource": ["*"]
+    				},
+    				{
+      				"Sid": "AllowUsersToSeeStatsOnIAMConsoleDashboard",
+      				"Effect": "Allow",
+      				"Action": [
+        				"iam:GetAccount*",
+        				"iam:ListAccount*"
+      				],
+      				"Resource": ["*"]
+    				}
+  				]  					
+      		},
+      		 "Groups" : [  { "Ref" : "UsersAdminsGroup" } ]
+   		}
+	},	
+   		"NetworkResourcesManagementPolicy" : {
+   		"Type" : "AWS::IAM::Policy",
+   		"Properties" : {
+      		"PolicyName" : "NetworkResourcesManagementPolicy",
+      		"PolicyDocument" : {
+        		"Version": "2012-10-17",
+    			"Statement":[{
+    				"Effect":"Allow",
+    				"Action":["ec2:*Vpc*",
+           	 			"ec2:*Subnet*",
+            	  		"ec2:*Gateway*",
+              			"ec2:*Vpn*",
+              			"ec2:*Route*",
+              			"ec2:*Address*",
+              			"ec2:*SecurityGroup*",
+              			"ec2:*NetworkAcl*",
+              			"ec2:*DhcpOptions*",
+              			"ec2:RunInstances",
+              			"ec2:StopInstances",
+              			"ec2:StartInstances",
+              			"ec2:TerminateInstances",
+              			"ec2:Describe*"],
+    			"Resource":"*"
+    			}
+  				]
+      		},
+        "Groups" : [  { "Ref" : "NetworkdminsGroup" } ]
+   		}
+	}
+ }
+}  
