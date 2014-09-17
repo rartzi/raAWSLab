@@ -512,26 +512,26 @@
 },
    
 "Outputs" : {
-    "VPC-Id" : {
+    "VPCId" : {
       "Description" : "VPCId of the newly created VPC",
       "Value" :  { "Ref" : "VPC" }
     },
- 	"PublicSubnet-Az1-Id" : {
+ 	"PublicSubnetAZ1Id" : {
       "Description" : "Public Subnet - Availability Zone 1 Id",
       "Value" :  { "Ref" : "PublicSubnet1" }
     },
-   	"PublicSubnet-Az2-Id" : {
+   	"PublicSubnetAz2Id" : {
       "Description" : "Public Subnet - Availability Zone 2 Id",
       "Value" :  { "Ref" : "PublicSubnet2" }
     },
-    "PrivateSubnet-Az1-Id" : {
+    "PrivateSubnetAz1Id" : {
       "Description" : "Private Subnet - Availability Zone 1 Id",
       "Value" :  { "Ref" : "PrivateSubnet1" }
     },
-    "PrivateSubnet-Az2-Id" : {
+    "PrivateSubnetAz2Id" : {
       "Description" : "Private Subnet - Availability Zone 2 Id",
       "Value" :  { "Ref" : "PrivateSubnet2" }
-    },
+    }
 
   }
 }
