@@ -1,0 +1,446 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "GlusterFS storage cluster CloudFormation template file.",
+  "Parameters": {
+    "SSHFrom": {
+      "Default": "0.0.0.0/0",
+      "Description": "Source IP address for SSH access",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x."
+    },
+    "VpcId": {
+      "Description": "VPC ID to which GlusterFS nodes belong.",
+      "Type": "String",
+      "Default": "vpc-xxxxxxxx"
+    },
+    "KeyName": {
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern": "[-_ a-zA-Z0-9]*",
+      "ConstraintDescription": "can contain only alphanumeric characters, spaces, dashes and underscores."
+    },
+    "AvailabilityZone01": {
+      "Default": "ap-northeast-1a",
+      "Description": "Availability zone of Subnet01.",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern": "[-_ a-zA-Z0-9]*"
+    },
+    "AvailabilityZone02": {
+      "Default": "ap-northeast-1c",
+      "Description": "Availability zone of Subnet02.",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern": "[-_ a-zA-Z0-9]*"
+    },
+    "Subnet01": {
+      "Description": "SubnetID to which GlusterFS nodes belong.",
+      "Type": "String",
+      "Default": "subnet-xxxxxxxx"
+    },
+    "Subnet02": {
+      "Description": "SubnetID to which GlusterFS nodes belong.",
+      "Type": "String",
+      "Default": "subnet-xxxxxxxx"
+    },
+    "InstanceType": {
+      "Default": "t1.micro",
+      "Description": "GlusterFS node EC2 instance type",
+      "Type": "String"
+    },
+    "ReplicaNum": {
+      "Default": "2",
+      "Description": "Number of replica.(1-9; 1 means no replica.)",
+      "Type": "Number",
+      "MinValue": "1",
+      "MaxValue": "9",
+      "ConstraintDescription": "must be 1 - 9"
+    },
+    "DistributionNum": {
+      "Default": "1",
+      "Description": "Number of distribution.(1-9)",
+      "Type": "Number",
+      "MinValue": "1",
+      "MaxValue": "9",
+      "ConstraintDescription": "must be 1 - 9"
+    },
+    "VolumeSize": {
+      "Default": "5",
+      "Description": "Size of EBS Volume used as GlusterFS brick.",
+      "Type": "Number",
+      "MinValue": "5",
+      "MaxValue": "1024"
+    }
+  },
+  "Conditions": {
+    "Replication": {"Fn::Not": [ {"Fn::Equals": [ {"Ref": "ReplicaNum"}, "1" ]} ]}
+  },
+  "Mappings": {
+    "AWSAmazonLinuxAMI": {
+      "us-east-1":      {"name":"Virginia",   "201303": "ami-3275ee5b", "201309": "ami-35792c5c" },
+      "us-west-2":      {"name":"Oregon",     "201303": "ami-ecbe2adc", "201309": "ami-d03ea1e0"},
+      "us-west-1":      {"name":"California", "201303": "ami-66d1fc23", "201309": "ami-687b4f2d"},
+      "eu-west-1":      {"name":"Ireland",    "201303": "ami-44939930", "201309": "ami-149f7863"},
+      "ap-southeast-1": {"name":"Singapole",  "201303": "ami-aa9ed2f8", "201309": "ami-14f2b946"},
+      "ap-southeast-2": {"name":"Sydney",     "201303": "ami-363eaf0c", "201309": "ami-a148d59b"},
+      "ap-northeast-1": {"name":"Tokyo",      "201303": "ami-173fbf16", "201309": "ami-3561fe34"},
+      "sa-east-1":      {"name":"SaoPaulo",   "201303": "ami-dd6bb0c0", "201309": "ami-9f6ec982"}
+    },
+    "AZ": {
+      "us-east-1":      {"primary": "us-east-1b",      "secondary": "us-east-1c"},
+      "us-west-2":      {"primary": "us-west-2a",      "secondary": "us-west-2b"},
+      "us-west-1":      {"primary": "us-west-1a",      "secondary": "us-west-1b"},
+      "eu-west-1":      {"primary": "eu-west-1a",      "secondary": "eu-west-1b"},
+      "ap-southeast-1": {"primary": "ap-southeast-1a", "secondary": "ap-southeast-1b"},
+      "ap-southeast-2": {"primary": "ap-southeast-2a", "secondary": "ap-southeast-2b"},
+      "ap-northeast-1": {"primary": "ap-northeast-1a", "secondary": "ap-northeast-1c"},
+      "sa-east-1":      {"primary": "sa-east-1a",      "secondary": "sa-east-1b"}
+    },
+    "MultiplicationTable": {
+      "1": {"1":"1", "2":"2", "3":"3", "4":"4", "5":"5", "6":"6", "7":"7", "8":"8", "9":"9"},
+      "2": {"1":"2", "2":"4", "3":"6", "4":"8", "5":"10", "6":"12", "7":"14", "8":"16", "9":"18"},
+      "3": {"1":"3", "2":"6", "3":"9", "4":"12", "5":"15", "6":"18", "7":"21", "8":"24", "9":"27"},
+      "4": {"1":"4", "2":"8", "3":"12", "4":"16", "5":"20", "6":"24", "7":"28", "8":"32", "9":"36"},
+      "5": {"1":"5", "2":"10", "3":"15", "4":"20", "5":"25", "6":"30", "7":"35", "8":"40", "9":"45"},
+      "6": {"1":"6", "2":"12", "3":"18", "4":"24", "5":"30", "6":"36", "7":"42", "8":"48", "9":"54"},
+      "7": {"1":"7", "2":"14", "3":"21", "4":"28", "5":"35", "6":"42", "7":"49", "8":"56", "9":"63"},
+      "8": {"1":"8", "2":"16", "3":"24", "4":"32", "5":"40", "6":"48", "7":"56", "8":"64", "9":"72"},
+      "9": {"1":"9", "2":"18", "3":"27", "4":"36", "5":"45", "6":"54", "7":"63", "8":"72", "9":"81"}
+    }
+  },
+  "Resources": {
+    "PowerUserRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [ {
+            "Effect": "Allow",
+              "Principal": {
+                "Service": [ "ec2.amazonaws.com" ]
+              },
+              "Action": [ "sts:AssumeRole" ]
+          } ]
+        },
+        "Path": "/",
+        "Policies":[ {
+          "PolicyName": "PowerUserPolicy",
+          "PolicyDocument": {
+            "Statement": [ {
+              "Sid": "PowerUserStmt",
+              "Effect": "Allow",
+              "NotAction": "iam:*",
+              "Resource": "*"
+            } ]
+          }
+        }]
+      }
+    },
+    "PowerUserProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ {"Ref": "PowerUserRole"} ]
+      }
+    },
+
+    "GlusterNodeSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Allow mount from GlusterClientSecurityGroup",
+        "VpcId": {"Ref": "VpcId"},
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "38465",
+            "ToPort": "38468",
+            "SourceSecurityGroupId": {"Ref": "GlusterClientSecurityGroup"}
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "24007", 
+            "ToPort": "24107",
+            "SourceSecurityGroupId": {"Ref": "GlusterClientSecurityGroup"}
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {"Ref": "SSHFrom"}
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "111",
+            "ToPort": "111",
+            "SourceSecurityGroupId": {"Ref": "GlusterClientSecurityGroup"}
+          }
+        ]
+      }
+    },
+    "GlusterNodeSecurityGroupIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {"Ref": "GlusterNodeSecurityGroup"},
+        "IpProtocol": "tcp",
+        "FromPort": "0",
+        "ToPort": "65535",
+        "SourceSecurityGroupId": {"Ref": "GlusterNodeSecurityGroup"}
+      }
+    }, 
+    "GlusterClientSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Associate this group with instances which mount GlusterFS Volume.",
+        "VpcId": {"Ref": "VpcId"},
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {"Ref": "SSHFrom"}
+          }
+        ]
+      }
+    },
+
+    "NodeFleet": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "AvailabilityZones": [
+          {"Ref": "AvailabilityZone01"},
+          {"Ref": "AvailabilityZone02"}
+        ],
+        "VPCZoneIdentifier": [
+          {"Ref": "Subnet01"},
+          {"Ref": "Subnet02"}
+        ],
+        "LaunchConfigurationName": {"Ref": "NodeLaunchConfig" },
+        "MinSize": {"Fn::FindInMap": [ "MultiplicationTable", {"Ref": "ReplicaNum"}, {"Ref": "DistributionNum"} ]},
+        "MaxSize": {"Fn::FindInMap": [ "MultiplicationTable", {"Ref": "ReplicaNum"}, {"Ref": "DistributionNum"} ]},
+        "DesiredCapacity": {"Fn::FindInMap": [ "MultiplicationTable", {"Ref": "ReplicaNum"}, {"Ref": "DistributionNum"} ]},
+        "Tags": [
+          {"Key": "Name", "Value": {"Fn::Join": ["-", [{"Ref": "AWS::StackName"}, "GlusterNode"]]}, "PropagateAtLaunch": "true"}
+        ]
+      }
+    },
+    "NodeLaunchConfig"  : {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "InstanceType": {"Ref": "InstanceType"},
+        "KeyName": {"Ref": "KeyName"},
+        "ImageId": {"Fn::FindInMap": [ "AWSAmazonLinuxAMI", {"Ref": "AWS::Region"}, "201309" ]},
+        "SecurityGroups": [
+          {"Ref": "GlusterNodeSecurityGroup"}
+        ],
+        "IamInstanceProfile": {"Ref": "PowerUserProfile"},
+        "InstanceMonitoring": "false",
+        "AssociatePublicIpAddress": "true",
+        "BlockDeviceMappings": [
+          {"DeviceName": "/dev/sdf", "Ebs": {"VolumeSize": {"Ref": "VolumeSize"}}}
+        ],
+        "UserData": {"Fn::Base64": {"Fn::Join": ["", [
+          "#! /bin/bash -v\n",
+          "yum update -y\n",
+
+          "# Helper function\n",
+          "function error_exit\n",
+          "{\n",
+          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", {"Ref": "NodeWaitHandle"}, "'\n",
+          "  exit 1\n",
+          "}\n",
+
+          "# Install packages\n",
+          "/opt/aws/bin/cfn-init -v -s ", {"Ref": "AWS::StackId"}, " -r NodeLaunchConfig -c makeNode",
+          "    --region ", {"Ref": "AWS::Region"}, " || error_exit 'Failed to run cfn-init'\n",
+
+          "# All is well so signal success\n",
+          "/opt/aws/bin/cfn-signal -e 0 '", {"Ref": "NodeWaitHandle"}, "'\n"
+        ]]}}
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+              "init": [ "setYumRepo", "startGlusterd" ],
+              "makeNode": [ {"ConfigSet": "init"}, "makeBrick" ],
+              "makeGluster": [ {"ConfigSet": "init"}, "makeVolume", "mountVolume" ]
+          },
+          "setYumRepo": {
+            "commands": {
+              "00getRepoFile": {
+                "command": "curl -o /etc/yum.repos.d/glusterfs-epel.repo http://download.gluster.org/pub/gluster/glusterfs/3.3/LATEST/EPEL.repo/glusterfs-epel.repo" 
+              },
+              "01modifyRepoFile": {
+                "command": "sed -i.bak 's/$releasever/6/' /etc/yum.repos.d/glusterfs-epel.repo" 
+              }
+            }
+          },
+          "startGlusterd": {
+            "packages": {
+              "yum": {
+                "glusterfs-server"   : []
+              }
+            },
+            "services": {
+              "sysvinit": {
+                "glusterd"   : {"enabled": "true", "ensureRunning": "true"}
+              }
+            }
+          },
+          "makeBrick": {
+            "commands": {
+              "00formatFS": {
+                "command": "mkfs.ext4 -I 512 /dev/xvdf"
+              },
+              "01makeBrickDir": {
+                "command": "mkdir -p /bricks/vol01/"
+              },
+              "02mountBrickDir": {
+                "command": "mount /dev/xvdf /bricks/vol01/"
+              },
+              "03modifyFstab": {
+                "command": "echo '/dev/xvdf /bricks/vol01 ext4 defaults,noatime 1 1' >> /etc/fstab"
+              }
+            }
+          },
+          "makeVolume": {
+            "commands": {
+              "00listHosts": {
+                "command": {"Fn::Join": ["", [
+                  "aws ec2 describe-instances --region ", {"Ref": "AWS::Region"},
+                    " --filter 'Name=tag-key,Values=Name','Name=tag-value,Values=",
+                    {"Fn::Join": ["-", [{"Ref": "AWS::StackName"}, "GlusterNode" ]]},
+                    "' --query 'Reservations[*].Instances[*].PrivateIpAddress' --output text",
+                  "> glusterhosts"
+                ]]}
+              },
+              "01peerProbe": {
+                "command": "for host in $(cat glusterhosts);do gluster peer probe $host;done"
+              },
+              "02volumeCreate": {
+                "command": {"Fn::Join": ["", [
+                  "gluster volume create vol01 ",
+                  {"Fn::If": [ "Replication", {"Fn::Join": ["", ["replica " , {"Ref": "ReplicaNum"}]]}, "" ]},
+                  " $(sed -r 's!( +|\\t+|$)!:/bricks/vol01 !g' glusterhosts)"
+                ]]}
+              },
+              "02volumeStart": {
+                "command": "gluster volume start vol01"
+              }
+            }
+          },
+          "mountVolume": {
+            "packages": {
+              "yum": {
+                "glusterfs"   : [],
+                "glusterfs-fuse"   : []
+              }
+            },
+            "commands": {
+              "00makeMountPoint": {
+                "command": "mkdir -p /mnt/glusterfs/vol01",
+                "ignoreErrors" : "true"
+              },
+              "01mountVolume": {
+                "command": "mount -t glusterfs $(head -n 1 glusterhosts|cut -f1):/vol01 /mnt/glusterfs/vol01",
+                "ignoreErrors" : "true"
+              },
+              "02modifyFstab": {
+                "command": "echo \"$(head -n 1 glusterhosts|cut -f1):/vol01 /mnt/glusterfs/vol01 glusterfs defaults,noatime 0 0\" >> /etc/fstab",
+                "test" : "test -d /mnt/glusterfs/vol01/lost+found/",
+                "ignoreErrors" : "true"
+              }
+            }
+          }
+        }
+      }
+    },
+    "NodeWaitHandle": {
+      "Type": "AWS::CloudFormation::WaitConditionHandle"
+    },
+    "NodeWaitCondition": {
+      "Type": "AWS::CloudFormation::WaitCondition",
+      "DependsOn": "NodeFleet",
+      "Properties": {
+        "Handle": {"Ref": "NodeWaitHandle"},
+        "Timeout": "600",
+        "Count"   : {"Fn::FindInMap": [ "MultiplicationTable", {"Ref": "ReplicaNum"}, {"Ref": "DistributionNum"} ]}
+      }
+    },
+
+    "ClientIP": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "InstanceId": {"Ref": "ClientInstance"}
+      }
+    },
+    "ClientInstance": {
+      "Type": "AWS::EC2::Instance",
+      "DependsOn": "NodeWaitCondition",
+      "Properties": {
+        "InstanceType": "t1.micro",
+        "ImageId": {"Fn::FindInMap": [ "AWSAmazonLinuxAMI", {"Ref": "AWS::Region"}, "201309" ]},
+        "SecurityGroupIds": [
+          {"Ref": "GlusterNodeSecurityGroup"},
+          {"Ref": "GlusterClientSecurityGroup"}
+        ],
+        "KeyName": {"Ref": "KeyName"},
+        "SubnetId": {"Ref": "Subnet01"},
+        "IamInstanceProfile": {"Ref": "PowerUserProfile"},
+        "Monitoring": "false",
+        "Tags": [
+          {"Key": "Name", "Value": {"Fn::Join": ["-", [{"Ref": "AWS::StackName"}, "GlusterClient"]]}},
+          {"Key": "Network", "Value": "Public"}
+        ],
+        "UserData": {"Fn::Base64": {"Fn::Join": ["", [
+          "#! /bin/bash -v\n",
+          "yum update -y aws-cfn-bootstrap aws-cli\n",
+
+          "# Helper function\n",
+          "function error_exit\n",
+          "{\n",
+          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", {"Ref": "ClientWaitHandle"}, "'\n",
+          "  exit 1\n",
+          "}\n",
+
+          "# Install packages\n",
+          "/opt/aws/bin/cfn-init -v -s ", {"Ref": "AWS::StackId"}, " -r NodeLaunchConfig -c makeGluster",
+          "    --region ", {"Ref": "AWS::Region"}, " || error_exit 'Failed to run cfn-init'\n",
+
+          "# All is well so signal success\n",
+          "/opt/aws/bin/cfn-signal -e 0 -i 'HowToMount' -d \"mount -t glusterfs $(head -n 1 glusterhosts|cut -f1):/vol01 /your/mountpoint\" '", {"Ref": "ClientWaitHandle"}, "'\n"
+        ]]}}
+      }
+    },
+    "ClientWaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
+    },
+    "ClientWaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : "ClientInstance",
+      "Properties" : {
+        "Handle" : {"Ref" : "ClientWaitHandle"},
+        "Timeout" : "600"
+      }
+    }
+  },
+
+  "Outputs": {
+    "HowToMountVolume" : {
+       "Value" : { "Fn::GetAtt" : [ "ClientWaitCondition", "Data" ]},
+       "Description" : "Before mount, you should associate GlusterClientSecurityGroup with client instances."
+    },
+    "SSHToTestClient": {
+      "Value": {"Fn::Join":["", [
+        "ssh -i /path/to/", {"Ref": "KeyName"}, ".pem -l ec2-user ", {"Ref": "ClientIP"}
+      ]]},
+      "Description": "SSH command to connect to the test client."
+    }
+  }
+}
