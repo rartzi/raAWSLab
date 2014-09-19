@@ -22,7 +22,7 @@
     "GlusterInstanceType" : {
       "Description" : "Backend Server EC2 instance type",
       "Type" : "String",
-      "Default" : "m1.large",
+      "Default" : "m3.xlarge",
       "AllowedValues" : [
         "t1.micro",
         "m1.small",
@@ -39,10 +39,9 @@
         "hi1.4xlarge",
         "m3.xlarge",
         "m3.2xlarge",
-        "hs1.8xlarge"
+         "hs1.8xlarge"
       ],
-      "ConstraintDescription" : "must be a valid EC2 instance type.",
-      "Default" : "hs1.8xlarge"
+      "ConstraintDescription" : "must be a valid EC2 instance type."
     },
     "ClusterSize" : {
       "Description" : "Number of EC2 instances to launch for the backend server",
@@ -62,7 +61,7 @@
     "VpcSubnetId" : {
       "Description" : "Id of an exisiting VPC subnet i.e. subnet-ae4ebec4",
       "Type" : "String",
-      "Default" : "subnet-88d8c5a0",
+      "Default" : "subnet-3fb0ad17",
       "MinLength" : "1",
       "MaxLength" : "64",
       "AllowedPattern" : "subnet-[a-z0-9]*",
@@ -75,7 +74,7 @@
       "MaxLength" : "64",
       "AllowedPattern" : "vpc-[a-z0-9]*",
       "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores.",
-      "Default" : "vpc-6d378508"
+      "Default" : "vpc-56da6733"
     },
     "SubnetAZ" : {
       "Description" : "Availability Zone of the subnet specified by VpcSubnetId",
@@ -87,9 +86,9 @@
       "Default" : "us-east-1c"
     },
     "FSType" : {
-      "Description" : "Filesystem type i.e. distrubuted or replicated",
+      "Description" : "Filesystem type i.e. distributed or replicated-2",
       "Type" : "String",
-      "Default" : "distributed",
+      "Default" : "replicated-2",
       "ConstraintDescription" : "Must match one of the supported GlusterFS filesystem types"
     }
   },
@@ -278,19 +277,20 @@
                 "mode" : "000700",
                 "owner" : "root",
                 "group" : "root",
-                "source" : "https://d3vahn1iv3ye1f.cloudfront.net/scripts/glusterfs/tcp-tuning.sh"
+                "source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/GlusterFS/tcp-tuning.sh"
               },
               "/root/cfn-setup-gluster.sh" : {
                 "mode" : "000700",
                 "owner" : "root",
                 "group" : "root",
-                "source" : "https://d3vahn1iv3ye1f.cloudfront.net/scripts/glusterfs/cfn-setup-gluster.sh"
+                "source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/GlusterFS/cfn-setup-gluster.sh"
               }
             }
           }
         }
       },
       "Properties" : {
+        "AssociatePublicIpAddress" : "true",
         "ImageId" : {
           "Fn::FindInMap" : [
             "AWSRegionArch2AMI",
@@ -494,7 +494,7 @@
           {
             "IpProtocol" : "tcp",
             "FromPort" : "24007",
-            "ToPort" : "24024",
+            "ToPort" : "24047",
             "CidrIp" : {
               "Ref" : "AccessFrom"
             }
@@ -514,7 +514,7 @@
             "CidrIp" : {
               "Ref" : "AccessFrom"
             }
-          },
+          },                
           {
             "IpProtocol" : "tcp",
             "FromPort" : "38465",
@@ -647,6 +647,12 @@
         }
       },
       "DependsOn" : "GlusterSecurityGroup"
-    }
-  }
+    }   
+  },
+  "Outputs":{  
+      "HowToMountVolume":{  
+         "Value": "How to mount a client",
+         "Description":"Before mount, you should associate GlusterClientSecurityGroup with client instances.\n for manual operation use : sudo mount  -t nfs -o nolock NASHeadIP:/glusterfs YourMountPoint"
+      }
+   }  
 }
