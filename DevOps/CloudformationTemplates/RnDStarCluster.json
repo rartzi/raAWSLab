@@ -20,21 +20,22 @@
       "Description" : "Twelve digit AWS account number.",
       "Type" : "String",
       "NoEcho" : "True",
-      "Default" : "882171559278"
+      "Default" : "671016219382"
     },
     "VPCId" : {
       "Description" : "Specifies the ID of the VPC that you want to launch the Cluster Controller into",
       "Type" : "String",
-      "Default" : "vpc-56da6733"
+      "Default" : "vpc-9bf44bfe"
     },
     "SubnetId" : {
       "Description" : "Specifies the ID of the subnet that you want to launch the Cluster Controller into",
       "Type" : "String",
-      "Default" : "subnet-3fb0ad17"
+      "Default" : "subnet-142ff263"
     },    
     "KeyName" : {
       "Description" : "Name of an existing EC2 Key Pair used to log into the StarCluster controller instance.",
-      "Type" : "String"
+      "Type" : "String",
+      "Default" : "ngs"
     },
     "ClusterSize" : {
       "Description" : "Number of instances to provision as compute nodes in the cluster.",
@@ -152,9 +153,10 @@
 						"cd /home/ec2-user/starcluster; /usr/bin/python distribute_setup.py\n",
 						"cd /home/ec2-user/starcluster; /usr/bin/python setup.py install\n",
   					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.starcluster\n",
-					    "/usr/bin/ruby /home/ec2-user/parser.rb /home/ec2-user/config_template.erb /home/ec2-user/values.yml > /home/ec2-user/.starcluster/config\n",
+					    "/usr/bin/ruby /home/ec2-user/admin/parser.rb /home/ec2-user/admin/config_template.erb /home/ec2-user/values.yml > /home/ec2-user/.starcluster/config\n",
 					    "/usr/bin/starcluster -c /home/ec2-user/.starcluster/config createkey ", { "Ref" : "ClusterKeypair" }, " -o /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n",
-					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.ssh/rsa-", { "Ref" : "ClusterKeypair" }, "\n"
+					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.ssh/rsa-", { "Ref" : "ClusterKeypair" }, "\n",
+					    "/bin/chmod  0664 /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n"
 						]]}}	
 	      },
 	      "Metadata" : {
@@ -188,11 +190,15 @@
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
 						"source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/StarCluster/plugins/lustre.py" 
 					},
-					"/home/ec2-user/parser.rb" : {
+					"/home/ec2-user/admin/addUsersToStarClusterController.sh" : {
+						"mode" : "000744", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/StarCluster/admin/addUsersToStarClusterController.sh" 
+					},
+					"/home/ec2-user/admin/parser.rb" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
 						"source" : "http://cfn-cc.s3.amazonaws.com/parser.rb" 
 					},
-					"/home/ec2-user/config_template.erb" : {
+					"/home/ec2-user/admin/config_template.erb" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
 						"source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/StarCluster/config/config_template.erb" 
 					},					

@@ -1,0 +1,1064 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create a Lustre cluster with 8 Object Storage Servers using EBS volumes. **WARNING** This template creates multiple Amazon EC2 instances and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+    "Mappings": {
+        "AWSInstanceType2Arch": {
+            "c1.medium": {
+                "Arch": "64"
+            },
+            "c1.xlarge": {
+                "Arch": "64"
+            },
+            "c3.2xlarge": {
+                "Arch": "64HVM"
+            },
+            "c3.4xlarge": {
+                "Arch": "64HVM"
+            },
+            "c3.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "c3.large": {
+                "Arch": "64HVM"
+            },
+            "c3.xlarge": {
+                "Arch": "64HVM"
+            },
+            "cc1.4xlarge": {
+                "Arch": "64HVM"
+            },
+            "cc2.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "hi1.4xlarge": {
+                "Arch": "64"
+            },
+            "hs1.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "m1.large": {
+                "Arch": "64"
+            },
+            "m1.medium": {
+                "Arch": "64"
+            },
+            "m1.small": {
+                "Arch": "64"
+            },
+            "m1.xlarge": {
+                "Arch": "64"
+            },
+            "m2.2xlarge": {
+                "Arch": "64"
+            },
+            "m2.4xlarge": {
+                "Arch": "64"
+            },
+            "m2.xlarge": {
+                "Arch": "64"
+            },
+            "m3.2xlarge": {
+                "Arch": "64"
+            },
+            "m3.large": {
+                "Arch": "64"
+            },
+            "m3.medium": {
+                "Arch": "64"
+            },
+            "m3.xlarge": {
+                "Arch": "64"
+            },
+            "r3.2xlarge": {
+                "Arch": "64HVM"
+            },
+            "r3.4xlarge": {
+                "Arch": "64HVM"
+            },
+            "r3.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "r3.xlarge": {
+                "Arch": "64HVM"
+            },
+            "t1.micro": {
+                "Arch": "64"
+            }
+        },
+        "AWSRegionArch2ServerAMI": {
+            "ap-northeast-1": {
+                "64": "NA",
+                "64HVM": "ami-8fc8848e"
+            },
+            "ap-southeast-1": {
+                "64": "NA",
+                "64HVM": "ami-902e72c2"
+            },
+            "ap-southeast-2": {
+                "64": "NA",
+                "64HVM": "ami-af7f1a95"
+            },
+            "eu-west-1": {
+                "64": "NA",
+                "64HVM": "ami-836ea2f4"
+            },
+            "sa-east-1": {
+                "64": "NA",
+                "64HVM": "ami-d151fdcc"
+            },
+            "us-east-1": {
+                "64": "NA",
+                "64HVM": "ami-58a45530"
+            },
+            "us-west-1": {
+                "64": "NA",
+                "64HVM": "ami-a8efebed"
+            },
+            "us-west-2": {
+                "64": "NA",
+                "64HVM": "ami-11ff8c21"
+            }
+        },
+        "InstanceSpotPrice": {
+            "c3.2xlarge": {
+                "price": "0.60"
+            },
+            "c3.4xlarge": {
+                "price": "1.20"
+            },
+            "c3.8xlarge": {
+                "price": "2.00"
+            },
+            "c3.large": {
+                "price": "0.15"
+            },
+            "c3.xlarge": {
+                "price": "0.30"
+            },
+            "cc2.8xlarge": {
+                "price": "2.00"
+            },
+            "m1.large": {
+                "price": "0.24"
+            },
+            "m1.xlarge": {
+                "price": "0.48"
+            },
+            "m3.2xlarge": {
+                "price": "1.00"
+            },
+            "m3.xlarge": {
+                "price": "0.50"
+            }
+        }
+    },
+    "Outputs": {
+        "Dashboard": {
+            "Description": "Monitoring interface for the Lustre servers.",
+            "Value": {
+                "Fn::Join": [
+                    "",
+                    [
+                        "http://",
+                        {
+                            "Fn::GetAtt": [
+                                "MGSNode",
+                                "PublicDnsName"
+                            ]
+                        },
+                        "/ganglia"
+                    ]
+                ]
+            }
+        },
+        "LustreExport": {
+            "Description": "Mount target for Lustre file system.",
+            "Value": {
+                "Fn::Join": [
+                    "",
+                    [
+                        {
+                            "Fn::GetAtt": [
+                                "MGSNode",
+                                "PrivateIp"
+                            ]
+                        },
+                        ":/",
+                        {
+                            "Ref": "FsName"
+                        }
+                    ]
+                ]
+            }
+        },
+        "LustreSecurityGroup": {
+            "Description": "Security Group ID that can access the Lustre filesystem.",
+            "Value": {
+                "Ref": "InstanceSecurityGroup"
+            }
+        }
+    },
+    "Parameters": {
+        "FsName": {
+            "Default": "scratch",
+            "Description": "Name of the lustre filesystem.",
+            "Type": "String"
+        },
+        "KeyName": {
+            "Description": "Name of and existing EC2 KeyPair to enable SSH access to the instance",
+            "Type": "String"
+        },
+        "LustreAZ": {
+            "Description": "The region to use for this cluster.",
+            "Type": "String"
+        },
+        "OstRaid": {
+            "AllowedValues": [
+                "stripe",
+                "jbod"
+            ],
+            "Default": "stripe",
+            "Description": "Configure how storage is used by the lustre target. Stripe mode creates a single Lustre target on a RAID0 volume containing all available storage volumes. JBOD mode creates one Lustre target per available volume.",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "ClientLaunchConfig": {
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/loci.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[default]\n",
+                                            "FsName: ",
+                                            {
+                                                "Ref": "FsName"
+                                            },
+                                            "\n",
+                                            "FilesystemTable: ",
+                                            {
+                                                "Ref": "lustremd"
+                                            },
+                                            "\n",
+                                            "HaEnabled: ",
+                                            "false",
+                                            "\n",
+                                            "LogDir: ",
+                                            "/var/log",
+                                            "\n",
+                                            "MgsUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "MdsUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "OssUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "MgtRootVolumeSize: ",
+                                            "8",
+                                            "\n",
+                                            "MdtRaid: ",
+                                            "stripe",
+                                            "\n",
+                                            "OstRaid:",
+                                            {
+                                                "Ref": "OstRaid"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00644",
+                                "user": "root"
+                            },
+                            "/etc/profile.d/openmpi.sh": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "module add openmpi-x86_64\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "0644",
+                                "owner": "root"
+                            }
+                        },
+                        "packages": {
+                            "yum": {
+                                "bonnie++": [],
+                                "dbench": [],
+                                "environment-modules": [],
+                                "openmpi": [],
+                                "screen": []
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "IamInstanceProfile": {
+                    "Ref": "RootInstanceProfile"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegionArch2ServerAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap": [
+                                "AWSInstanceType2Arch",
+                                "c3.xlarge",
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring": "false",
+                "InstanceType": "c3.xlarge",
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "InstanceSecurityGroup"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ex\n",
+                                "cfn-init -s ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " -r ClientLaunchConfig --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "/root/setup-lustre\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        },
+        "ClientNodes": {
+            "Properties": {
+                "AvailabilityZones": [
+                    {
+                        "Ref": "LustreAZ"
+                    }
+                ],
+                "DesiredCapacity": "1",
+                "LaunchConfigurationName": {
+                    "Ref": "ClientLaunchConfig"
+                },
+                "MaxSize": "1",
+                "MinSize": "1",
+                "Tags": [
+                    {
+                        "Key": "lustre:type",
+                        "PropagateAtLaunch": "true",
+                        "Value": "client"
+                    },
+                    {
+                        "Key": "loci:application",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ]
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        },
+        "InstanceSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Enable SSH access via port 22 and Lustre port 988",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "LocalSGIngress": {
+            "Properties": {
+                "FromPort": "0",
+                "GroupName": {
+                    "Ref": "InstanceSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "SourceSecurityGroupName": {
+                    "Ref": "InstanceSecurityGroup"
+                },
+                "ToPort": "65535"
+            },
+            "Type": "AWS::EC2::SecurityGroupIngress"
+        },
+        "LocalUDPSGIngress": {
+            "Properties": {
+                "FromPort": "0",
+                "GroupName": {
+                    "Ref": "InstanceSecurityGroup"
+                },
+                "IpProtocol": "udp",
+                "SourceSecurityGroupName": {
+                    "Ref": "InstanceSecurityGroup"
+                },
+                "ToPort": "65535"
+            },
+            "Type": "AWS::EC2::SecurityGroupIngress"
+        },
+        "MDSLaunchConfig": {
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/loci.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[default]\n",
+                                            "FsName: ",
+                                            {
+                                                "Ref": "FsName"
+                                            },
+                                            "\n",
+                                            "FilesystemTable: ",
+                                            {
+                                                "Ref": "lustremd"
+                                            },
+                                            "\n",
+                                            "HaEnabled: ",
+                                            "false",
+                                            "\n",
+                                            "LogDir: ",
+                                            "/var/log",
+                                            "\n",
+                                            "MgsUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "MdsUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "OssUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "MgtRootVolumeSize: ",
+                                            "8",
+                                            "\n",
+                                            "MdtRaid: ",
+                                            "stripe",
+                                            "\n",
+                                            "OstRaid:",
+                                            {
+                                                "Ref": "OstRaid"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00644",
+                                "user": "root"
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sdf",
+                        "Ebs": {
+                            "VolumeSize": "40",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdg",
+                        "Ebs": {
+                            "VolumeSize": "40",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdh",
+                        "Ebs": {
+                            "VolumeSize": "40",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdi",
+                        "Ebs": {
+                            "VolumeSize": "40",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdj",
+                        "Ebs": {
+                            "VolumeSize": "40",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdk",
+                        "Ebs": {
+                            "VolumeSize": "40",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdl",
+                        "Ebs": {
+                            "VolumeSize": "40",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdm",
+                        "Ebs": {
+                            "VolumeSize": "40",
+                            "VolumeType": "gp2"
+                        }
+                    }
+                ],
+                "EbsOptimized": "true",
+                "IamInstanceProfile": {
+                    "Ref": "RootInstanceProfile"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegionArch2ServerAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap": [
+                                "AWSInstanceType2Arch",
+                                "c3.4xlarge",
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring": "false",
+                "InstanceType": "c3.4xlarge",
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "InstanceSecurityGroup"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ex\n",
+                                "cfn-init -s ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " -r MDSLaunchConfig --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "/root/setup-lustre\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        },
+        "MDSNodes": {
+            "Properties": {
+                "AvailabilityZones": [
+                    {
+                        "Ref": "LustreAZ"
+                    }
+                ],
+                "DesiredCapacity": "1",
+                "LaunchConfigurationName": {
+                    "Ref": "MDSLaunchConfig"
+                },
+                "MaxSize": "1",
+                "MinSize": "1",
+                "Tags": [
+                    {
+                        "Key": "lustre:type",
+                        "PropagateAtLaunch": "true",
+                        "Value": "mdt"
+                    },
+                    {
+                        "Key": "loci:application",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ]
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        },
+        "MGSNode": {
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/loci.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[default]\n",
+                                            "FsName: ",
+                                            {
+                                                "Ref": "FsName"
+                                            },
+                                            "\n",
+                                            "FilesystemTable: ",
+                                            {
+                                                "Ref": "lustremd"
+                                            },
+                                            "\n",
+                                            "HaEnabled: ",
+                                            "false",
+                                            "\n",
+                                            "LogDir: ",
+                                            "/var/log",
+                                            "\n",
+                                            "MgsUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "MdsUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "OssUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "MgtRootVolumeSize: ",
+                                            "8",
+                                            "\n",
+                                            "MdtRaid: ",
+                                            "stripe",
+                                            "\n",
+                                            "OstRaid:",
+                                            {
+                                                "Ref": "OstRaid"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00644",
+                                "user": "root"
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sdf",
+                        "Ebs": {
+                            "VolumeSize": "5"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdg",
+                        "Ebs": {
+                            "VolumeSize": "8"
+                        }
+                    }
+                ],
+                "IamInstanceProfile": {
+                    "Ref": "RootInstanceProfile"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegionArch2ServerAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap": [
+                                "AWSInstanceType2Arch",
+                                "c3.large",
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceType": "c3.large",
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "InstanceSecurityGroup"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "lustre:type",
+                        "Value": "mgt"
+                    },
+                    {
+                        "Key": "loci:application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ex\n",
+                                "cfn-init -s ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " -r MGSNode ",
+                                "   --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "/root/setup-lustre\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::EC2::Instance"
+        },
+        "OSSLaunchConfig": {
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/loci.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[default]\n",
+                                            "FsName: ",
+                                            {
+                                                "Ref": "FsName"
+                                            },
+                                            "\n",
+                                            "FilesystemTable: ",
+                                            {
+                                                "Ref": "lustremd"
+                                            },
+                                            "\n",
+                                            "HaEnabled: ",
+                                            "false",
+                                            "\n",
+                                            "LogDir: ",
+                                            "/var/log",
+                                            "\n",
+                                            "MgsUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "MdsUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "OssUseEbs: ",
+                                            "true",
+                                            "\n",
+                                            "MgtRootVolumeSize: ",
+                                            "8",
+                                            "\n",
+                                            "MdtRaid: ",
+                                            "stripe",
+                                            "\n",
+                                            "OstRaid:",
+                                            {
+                                                "Ref": "OstRaid"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00644",
+                                "user": "root"
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sdf",
+                        "Ebs": {
+                            "VolumeSize": "100",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdg",
+                        "Ebs": {
+                            "VolumeSize": "100",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdh",
+                        "Ebs": {
+                            "VolumeSize": "100",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdi",
+                        "Ebs": {
+                            "VolumeSize": "100",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdj",
+                        "Ebs": {
+                            "VolumeSize": "100",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdk",
+                        "Ebs": {
+                            "VolumeSize": "100",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdl",
+                        "Ebs": {
+                            "VolumeSize": "100",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdm",
+                        "Ebs": {
+                            "VolumeSize": "100",
+                            "VolumeType": "gp2"
+                        }
+                    }
+                ],
+                "EbsOptimized": "true",
+                "IamInstanceProfile": {
+                    "Ref": "RootInstanceProfile"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegionArch2ServerAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap": [
+                                "AWSInstanceType2Arch",
+                                "c3.4xlarge",
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring": "false",
+                "InstanceType": "c3.4xlarge",
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "InstanceSecurityGroup"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ex\n",
+                                "cfn-init -s ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " -r OSSLaunchConfig --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "/root/setup-lustre\n",
+                                "cfn-signal -e $? -r 'OSS setup done' '",
+                                {
+                                    "Ref": "OssWaitHandle"
+                                },
+                                "'\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        },
+        "OSSNodes": {
+            "Properties": {
+                "AvailabilityZones": [
+                    {
+                        "Ref": "LustreAZ"
+                    }
+                ],
+                "DesiredCapacity": "8",
+                "LaunchConfigurationName": {
+                    "Ref": "OSSLaunchConfig"
+                },
+                "MaxSize": "8",
+                "MinSize": "8",
+                "Tags": [
+                    {
+                        "Key": "lustre:type",
+                        "PropagateAtLaunch": "true",
+                        "Value": "ost"
+                    },
+                    {
+                        "Key": "loci:application",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ]
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        },
+        "OssWaitCondition": {
+            "DependsOn": "OSSNodes",
+            "Properties": {
+                "Count": "8",
+                "Handle": {
+                    "Ref": "OssWaitHandle"
+                },
+                "Timeout": "3600"
+            },
+            "Type": "AWS::CloudFormation::WaitCondition"
+        },
+        "OssWaitHandle": {
+            "Properties": {},
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "RolePolicies": {
+            "Properties": {
+                "PolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "EC2:DescribeInstances",
+                                "EC2:DescribeInstanceStatus",
+                                "EC2:CreateTags",
+                                "CloudFormation:*",
+                                "dynamodb:*"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*"
+                        }
+                    ]
+                },
+                "PolicyName": "root",
+                "Roles": [
+                    {
+                        "Ref": "RootRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::Policy"
+        },
+        "RootInstanceProfile": {
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "RootRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::InstanceProfile"
+        },
+        "RootRole": {
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Path": "/"
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "lustremd": {
+            "Properties": {
+                "KeySchema": {
+                    "HashKeyElement": {
+                        "AttributeName": "id",
+                        "AttributeType": "S"
+                    }
+                },
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": "10",
+                    "WriteCapacityUnits": "5"
+                }
+            },
+            "Type": "AWS::DynamoDB::Table"
+        }
+    }
+}

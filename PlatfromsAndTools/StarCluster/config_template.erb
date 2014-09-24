@@ -13,7 +13,7 @@ DEFAULT_TEMPLATE=ngsspotcluster
 # specify a web browser to launch when viewing spot history plots
 #WEB_BROWSER=chromium
 # split the config into multiple files
-INCLUDE= /home/ec2-user/.starcluster/plugins_bundle.ngs
+INCLUDE= ~/.starcluster/plugins_bundle.ngs
 
 #############################################
 ## AWS Credentials and Connection Settings ##
@@ -47,7 +47,7 @@ AWS_USER_ID = <%= account_number %>
 # --help" for instructions on how to create a new keypair. Section name should
 # match your key name e.g.:
 [key <%= cluster_keypair %>]
-KEY_LOCATION=/home/ec2-user/.ssh/<%= cluster_keypair %>.rsa
+KEY_LOCATION=~/.ssh/<%= cluster_keypair %>.rsa
 
 ################################
 ## Defining Cluster Templates ##
