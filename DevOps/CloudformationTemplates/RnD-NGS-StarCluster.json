@@ -31,7 +31,13 @@
       "Description" : "Specifies the ID of the subnet that you want to launch the Cluster Controller into",
       "Type" : "String",
       "Default" : "subnet-142ff263"
-    },    
+    }, 
+    "NASServerIP" : {
+      "Description" : "Nas Server Mount IP",
+      "Type" : "String",
+      "Default" : "0.0.0.0"
+    }, 
+       
     "KeyName" : {
       "Description" : "Name of an existing EC2 Key Pair used to log into the StarCluster controller instance.",
       "Type" : "String",
@@ -63,6 +69,8 @@
   "Mappings" : {
     "AWSInstanceType2Arch" : {
       "t1.micro"    : { "Arch" : "64" },
+      "t2.micro"    : { "Arch" : "64" },
+      "t2.medium"    : { "Arch" : "64" },
       "m1.small"    : { "Arch" : "64" },
       "m1.medium"   : { "Arch" : "64" },
       "m1.large"    : { "Arch" : "64" },
@@ -124,7 +132,7 @@
 	 "StarClusterController" : {
 	      "Type" : "AWS::EC2::Instance",
 	      "Properties" : {
-		  "InstanceType" : "t1.micro",
+		  "InstanceType" : { "Ref" : "InstanceType" },
 	        "ImageId" : "ami-e565ba8c",
 		    "KeyName" : { "Ref" : "KeyName" },
 		    "NetworkInterfaces"  : [ {
@@ -150,12 +158,13 @@
 			              "--access-key=", { "Ref" : "ClusterUserKeys" }, " ", "--secret-key=", { "Fn::GetAtt" : ["ClusterUserKeys", "SecretAccessKey"]}, "\n",
 						"cd /usr/src/pycrypto/pycrypto-2.4; /usr/bin/python setup.py build\n",
 						"cd /usr/src/pycrypto/pycrypto-2.4; /usr/bin/python setup.py install\n",
-						"cd /home/ec2-user/starcluster; /usr/bin/python distribute_setup.py\n",
-						"cd /home/ec2-user/starcluster; /usr/bin/python setup.py install\n",
+						"cd /usr/local/starcluster; /usr/bin/python distribute_setup.py\n",
+						"cd /usr/local/starcluster; /usr/bin/python setup.py install\n",
   					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.starcluster\n",
-					    "/usr/bin/ruby /home/ec2-user/admin/parser.rb /home/ec2-user/admin/config_template.erb /home/ec2-user/values.yml > /home/ec2-user/.starcluster/config\n",
+					    "/usr/bin/ruby /home/ec2-user/admin/parser.rb /home/ec2-user/.config/config_template.erb /home/ec2-user/.config/values.yml > /home/ec2-user/.starcluster/config\n",
+					    "/usr/bin/ruby /home/ec2-user/admin/parser.rb /home/ec2-user/.config/plugins_bundle.erb /home/ec2-user/.config/plugin_values.yml > /home/ec2-user/.starcluster/plugins_bundle.ngs\n",
 					    "/usr/bin/starcluster -c /home/ec2-user/.starcluster/config createkey ", { "Ref" : "ClusterKeypair" }, " -o /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n",
-					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.ssh/rsa-", { "Ref" : "ClusterKeypair" }, "\n",
+					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n",
 					    "/bin/chmod  0664 /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n"
 						]]}}	
 	      },
@@ -171,38 +180,51 @@
 	    			},
 				"sources" : {
 					"/usr/src/pycrypto" : "https://ftp.dlitz.net/pub/dlitz/crypto/pycrypto/pycrypto-2.4.tar.gz",
-					"/home/ec2-user/starcluster" : "https://github.com/jtriley/StarCluster/tarball/master"
+					"/usr/local/starcluster" : "https://github.com/jtriley/StarCluster/tarball/master"
 				},
 	            "files" : {	            
-	            	"/home/ec2-user/.starcluster/plugins_bundle.ngs" : {
-						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
-						"source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/StarCluster/plugins/plugins_bundle.ngs" 
-					},
 	            	"/home/ec2-user/.starcluster/plugins/tagger.py" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
-						"source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/StarCluster/plugins/tagger.py" 
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/plugins/tagger.py" 
 					},
 					"/home/ec2-user/.starcluster/plugins/glusterfsencrypt.py" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
-						"source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/StarCluster/plugins/glusterfsencrypt.py" 
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/plugins/glusterfsencrypt.py" 
+					},
+					"/home/ec2-user/.starcluster/plugins/glusterfsnas.py" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/plugins/glusterfsnas.py" 
 					},
 					"/home/ec2-user/.starcluster/plugins/lustre.py" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
-						"source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/StarCluster/plugins/lustre.py" 
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/plugins/lustre.py" 
 					},
 					"/home/ec2-user/admin/addUsersToStarClusterController.sh" : {
 						"mode" : "000744", "owner" : "ec2-user", "group" : "ec2-user",
-						"source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/StarCluster/admin/addUsersToStarClusterController.sh" 
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/admin/addUsersToStarClusterController.sh" 
 					},
 					"/home/ec2-user/admin/parser.rb" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
-						"source" : "http://cfn-cc.s3.amazonaws.com/parser.rb" 
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/admin/utilities/parser.rb" 
 					},
-					"/home/ec2-user/admin/config_template.erb" : {
+					"/home/ec2-user/.config/config_template.erb" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
-						"source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/StarCluster/config/config_template.erb" 
-					},					
-					"/home/ec2-user/values.yml" : {
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/config/config_template.erb" 
+					},
+					"/home/ec2-user/.config/plugins_bundle.erb" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/config/plugins_bundle.erb" 
+					},
+					"/home/ec2-user/.config/plugin_values.yml" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"content" : { "Fn::Join" : ["", [
+						    "values:\n",
+							"  gluster_server_node_ip: ", { "Ref" : "NASServerIP" },"\n",
+							"  gluster_volume_name: glusterfs", "\n",
+							"  gluster_shared_mount_point: ", "/mnt_ngs", "\n"
+		             	] ] }
+		        	},		
+					"/home/ec2-user/.config/values.yml" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
 						"content" : { "Fn::Join" : ["", [
 						    "values:\n",
@@ -217,7 +239,8 @@
 							"  subnet_id: " ,{ "Ref" : "SubnetId"}, "\n",
 							"  cloud_project: " ,{ "Ref" : "CloudProject"}, "\n",
 							"  cost_center: " ,{ "Ref" : "CostCenter"}, "\n",
-							"  max_spot_bid_price: ", { "Ref" : "SpotPrice"}, "\n"
+							"  max_spot_bid_price: ", { "Ref" : "SpotPrice"}, "\n",
+							"  user_local_volume_id: vol-001b9648", "\n"
 		             	] ] }
 		        	}
 				}	

@@ -6,6 +6,7 @@
 # defaults to 'smallcluster' defined below. This template should be usable
 # out-of-the-box provided you've configured your keypair correctly
 DEFAULT_TEMPLATE=ngsspotcluster
+
 # enable experimental features for this release
 #ENABLE_EXPERIMENTAL=True
 # number of seconds to wait when polling instances (default: 30s)
@@ -84,7 +85,7 @@ CLUSTER_USER = ngs
 # using this cluster config.  ie: mycluster-master and mycluster-node001
 # If you choose to enable this option, it's recommended that you enable it in
 # the DEFAULT_TEMPLATE so all nodes will automatically have the prefix
-# DNS_PREFIX = True
+DNS_PREFIX = True
 # AMI to use for cluster nodes. These AMIs are for the us-east-1 region.
 # Use the 'listpublic' command to list StarCluster AMIs in other regions
 # The base i386 StarCluster AMI is ami-9bf9c9f2
@@ -124,13 +125,13 @@ PUBLIC_IPS=True
 # list of volumes to attach to the master node (OPTIONAL)
 # these volumes, if any, will be NFS shared to the worker nodes
 # see "Configuring EBS Volumes" below on how to define volume sections
-#VOLUMES = ngslocal, datalocal
+VOLUMES = biodata
 # list of plugins to load after StarCluster's default setup routines (OPTIONAL)
 # see "Configuring StarCluster Plugins" below on how to define plugin sections
 PLUGINS = tagger, pkginstaller
 
 #PLUGINS = sge
-###---, gazzang-secure
+### defined in plugin_bundle
 # list of permissions (or firewall rules) to apply to the cluster's security
 # group (OPTIONAL).
 #PERMISSIONS = ssh, http
@@ -191,23 +192,11 @@ SPOT_BID = <%= max_spot_bid_price %>
 # VOLUME_ID = vol-c999999
 # MOUNT_PATH = /home
 
-# Same volume as above, but mounts to different location
-# [volume biodata2]
-# VOLUME_ID = vol-c999999
-# MOUNT_PATH = /opt/
+# attach user_local_volume_id to /home on master node and NFS-shre to worker nodes
+[volume biodata]
+VOLUME_ID = <%= user_local_volume_id %>
+MOUNT_PATH = /usr/local
 
-# Another volume example
-# [volume oceandata]
-# VOLUME_ID = vol-d7777777
-# MOUNT_PATH = /mydata
-
-# By default StarCluster will attempt first to mount the entire volume device,
-# failing that it will try the first partition. If you have more than one
-# partition you will need to set the PARTITION number, e.g.:
-# [volume oceandata]
-# VOLUME_ID = vol-d7777777
-# MOUNT_PATH = /mydata
-# PARTITION = 2
 
 ############################################
 ## Configuring Security Group Permissions ##
@@ -216,18 +205,6 @@ SPOT_BID = <%= max_spot_bid_price %>
 # automatically apply to newly created clusters. IP_PROTOCOL in the following
 # examples can be can be: tcp, udp, or icmp. CIDR_IP defaults to 0.0.0.0/0 or
 # "open to the # world"
-
-# open port 80 on the cluster to the world
-# [permission http]
-# IP_PROTOCOL = tcp
-# FROM_PORT = 80
-# TO_PORT = 80
-
-# open https on the cluster to the world
-# [permission https]
-# IP_PROTOCOL = tcp
-# FROM_PORT = 443
-# TO_PORT = 443
 
 # open port 80 on the cluster to an ip range using CIDR_IP
 # [permission http]
