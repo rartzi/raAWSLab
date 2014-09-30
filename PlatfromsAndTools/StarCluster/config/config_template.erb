@@ -5,7 +5,7 @@
 # Configure the default cluster template to use when starting a cluster
 # defaults to 'smallcluster' defined below. This template should be usable
 # out-of-the-box provided you've configured your keypair correctly
-DEFAULT_TEMPLATE=ngsspotcluster
+DEFAULT_TEMPLATE=lustre
 
 # enable experimental features for this release
 #ENABLE_EXPERIMENTAL=True
@@ -13,8 +13,9 @@ DEFAULT_TEMPLATE=ngsspotcluster
 #REFRESH_INTERVAL=15
 # specify a web browser to launch when viewing spot history plots
 #WEB_BROWSER=chromium
+
 # split the config into multiple files
-INCLUDE= ~/.starcluster/plugins_bundle.ngs
+#INCLUDE= ~/.starcluster/plugins_bundle.ngs
 
 #############################################
 ## AWS Credentials and Connection Settings ##
@@ -70,10 +71,8 @@ KEY_LOCATION=~/.ssh/<%= cluster_keypair %>.rsa
 [cluster ngsspotcluster]
 # change this to the name of one of the keypair sections defined above
 KEYNAME = <%= cluster_keypair %>
-
 # number of ec2 instances to launch
 CLUSTER_SIZE = <%= cluster_size %>
-
 # create the following user on the cluster
 CLUSTER_USER = ngs
 
@@ -153,20 +152,13 @@ SPOT_BID = <%= max_spot_bid_price %>
 # settings from <cluster_name> as defaults. Below are example templates that
 # use the EXTENDS feature:
 
-# [cluster mediumcluster]
-# Declares that this cluster uses smallcluster as defaults
-# EXTENDS=smallcluster
-# This section is the same as smallcluster except for the following settings:
-# KEYNAME=myotherkey
-# NODE_INSTANCE_TYPE = c1.xlarge
-# CLUSTER_SIZE=8
-# VOLUMES = biodata2
-
-# [cluster largecluster]
-# Declares that this cluster uses mediumcluster as defaults
-# EXTENDS=mediumcluster
-# This section is the same as mediumcluster except for the following variables:
-# CLUSTER_SIZE=16
+# Base ubuntu 12.04  x86_64-lustre client 2.4 - us - ease - 1 AMI is : ami-c586caac
+# Base ubuntu 12.04  x86_64-lustre client 2.4 - us - ease - 1 AMI is : ami-e8197cd8
+[cluster lustre]
+EXTENDS = ngsspotcluster
+PLUGINS = lustre, tagger
+NODE_IMAGE_ID = ami-c586caac
+CLUSTER_SIZE=2
 
 #############################
 ## Configuring EBS Volumes ##
@@ -182,21 +174,10 @@ SPOT_BID = <%= max_spot_bid_price %>
 
 # Sections starting with "volume" define your EBS volumes
 
-#[volume datalocal]
-#VOLUME_ID = vol-89d703cc
-#MOUNT_PATH = /data
-
-
-# [volume biodata]
-# attach vol-c9999999 to /home on master node and NFS-shre to worker nodes
-# VOLUME_ID = vol-c999999
-# MOUNT_PATH = /home
-
 # attach user_local_volume_id to /home on master node and NFS-shre to worker nodes
 [volume biodata]
 VOLUME_ID = <%= user_local_volume_id %>
 MOUNT_PATH = /usr/local
-
 
 ############################################
 ## Configuring Security Group Permissions ##
@@ -231,13 +212,39 @@ MOUNT_PATH = /usr/local
 # the 'smallcluster' template above). Below is an example of defining a user
 # plugin called 'myplugin':
 
-# [plugin myplugin]
-# NOTE: myplugin module must either live in ~/.starcluster/plugins or be
-# on your PYTHONPATH
-# SETUP_CLASS = myplugin.SetupClass
-# extra settings are passed as __init__ arguments to your plugin:
-# SOME_PARAM_FOR_MY_PLUGIN = 1
-# SOME_OTHER_PARAM = 2
+[plugin vol-ngs]
+SETUP_CLASS = glusterfs.GlusterfsSetup
+NAME = ngs
+MODE = stripe 2
+TRANSPORT = tcp
+BRICKS = master:EBS master:EBS master:EBS master:EBS master:EBS master:EBS
+EBS_SIZE = 1024
+MOUNT_PATH = /ngs/
+ENCRYPT = True
+
+[plugin tagger]
+setup_class = tagger.TaggerPlugin
+##add as many key:value pairs as you like separated by ','
+tags = CostCenter:740146, MyDate:[[date]], localuser:[[localuser]]
+
+[plugin pkginstaller]
+setup_class = starcluster.plugins.pkginstaller.PackageInstaller
+packages = collectl, openjdk-7-jdk
+
+[plugin lustre]
+setup_class = lustre.MountLustre
+lustre_export = IP:/scratch
+lustre_mountpoint = /ngs
+lustre_security_group = SecutiryGroupId
+
+[plugin GlusterfsClientSetup]
+setup_class = glusterfsnas.GlusterfsClientSetup
+
+[plugin glusterMounts]
+setup_class = glusterfsnas.glusterMount
+server = <%= gluster_server_node_ip %>
+volumes = <%= gluster_volume_name %>
+mountpoint = <%= gluster_shared_mount_point %>
 
 ######################
 ## Built-in Plugins ##

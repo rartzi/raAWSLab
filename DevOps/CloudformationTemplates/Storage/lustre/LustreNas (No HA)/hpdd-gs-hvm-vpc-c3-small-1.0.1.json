@@ -1,6 +1,6 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "Create a Lustre cluster with 8 Object Storage Servers using EBS volumes. **WARNING** This template creates multiple Amazon EC2 instances and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+    "Description": "Create a Lustre cluster with 4 Object Storage Servers using EBS volumes. **WARNING** This template creates multiple Amazon EC2 instances and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
     "Mappings": {
         "AWSInstanceType2Arch": {
             "c1.medium": {
@@ -36,6 +36,18 @@
             "hs1.8xlarge": {
                 "Arch": "64HVM"
             },
+            "i2.2xlarge": {
+                "Arch": "64HVM"
+            },
+            "i2.4xlarge": {
+                "Arch": "64HVM"
+            },
+            "i2.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "i2.xlarge": {
+                "Arch": "64HVM"
+            },
             "m1.large": {
                 "Arch": "64"
             },
@@ -69,20 +81,31 @@
             "m3.xlarge": {
                 "Arch": "64"
             },
-            "r3.2xlarge": {
-                "Arch": "64HVM"
-            },
-            "r3.4xlarge": {
-                "Arch": "64HVM"
-            },
-            "r3.8xlarge": {
-                "Arch": "64HVM"
-            },
-            "r3.xlarge": {
-                "Arch": "64HVM"
-            },
             "t1.micro": {
                 "Arch": "64"
+            }
+        },
+        "AWSNATAMI": {
+            "ap-northeast-1": {
+                "AMI": "ami-14d86d15"
+            },
+            "ap-southeast-1": {
+                "AMI": "ami-02eb9350"
+            },
+            "eu-west-1": {
+                "AMI": "ami-0b5b6c7f"
+            },
+            "sa-east-1": {
+                "AMI": "ami-0439e619"
+            },
+            "us-east-1": {
+                "AMI": "ami-c6699baf"
+            },
+            "us-west-1": {
+                "AMI": "ami-3bcc9e7e"
+            },
+            "us-west-2": {
+                "AMI": "ami-52ff7262"
             }
         },
         "AWSRegionArch2ServerAMI": {
@@ -136,7 +159,7 @@
                 "price": "0.30"
             },
             "cc2.8xlarge": {
-                "price": "2.00"
+                "price": "1.00"
             },
             "m1.large": {
                 "price": "0.24"
@@ -162,54 +185,61 @@
                         "http://",
                         {
                             "Fn::GetAtt": [
-                                "MGSNode",
-                                "PublicDnsName"
+                                "ElasticLoadBalancer",
+                                "DNSName"
                             ]
                         },
                         "/ganglia"
                     ]
                 ]
             }
-        },
-        "LustreExport": {
-            "Description": "Mount target for Lustre file system.",
-            "Value": {
-                "Fn::Join": [
-                    "",
-                    [
-                        {
-                            "Fn::GetAtt": [
-                                "MGSNode",
-                                "PrivateIp"
-                            ]
-                        },
-                        ":/",
-                        {
-                            "Ref": "FsName"
-                        }
-                    ]
-                ]
-            }
-        },
-        "LustreSecurityGroup": {
-            "Description": "Security Group ID that can access the Lustre filesystem.",
-            "Value": {
-                "Ref": "InstanceSecurityGroup"
-            }
         }
     },
     "Parameters": {
+        "AccessFrom": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x.",
+            "Default": "0.0.0.0/0",
+            "Description": "Lockdown access to Lustre services (default is accessiable for 0.0.0.0/0)",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        },
         "FsName": {
             "Default": "scratch",
             "Description": "Name of the lustre filesystem.",
+            "Type": "String"
+        },
+        "HTTPFrom": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x.",
+            "Default": "0.0.0.0/0",
+            "Description": "Lockdown access to Lustre Ganglia on MGS (default is accessiable for 0.0.0.0/0)",
+            "MaxLength": "18",
+            "MinLength": "9",
             "Type": "String"
         },
         "KeyName": {
             "Description": "Name of and existing EC2 KeyPair to enable SSH access to the instance",
             "Type": "String"
         },
-        "LustreAZ": {
-            "Description": "The region to use for this cluster.",
+        "NATInstanceType": {
+            "AllowedValues": [
+                "t1.micro",
+                "m1.small",
+                "m1.medium",
+                "m1.large",
+                "m1.xlarge",
+                "m2.xlarge",
+                "m2.2xlarge",
+                "m2.4xlarge",
+                "c1.medium",
+                "c1.xlarge",
+                "cc2.8xlarge"
+            ],
+            "ConstraintDescription": "must be a valid EC2 instance type.",
+            "Default": "m1.small",
+            "Description": "NAT Device EC2 instance type",
             "Type": "String"
         },
         "OstRaid": {
@@ -220,9 +250,90 @@
             "Default": "stripe",
             "Description": "Configure how storage is used by the lustre target. Stripe mode creates a single Lustre target on a RAID0 volume containing all available storage volumes. JBOD mode creates one Lustre target per available volume.",
             "Type": "String"
+        },
+        "SSHFrom": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x.",
+            "Default": "0.0.0.0/0",
+            "Description": "Lockdown SSH access to the NAT host (default can be accessed from anywhere)",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        },
+        "VpcId": {
+            "AllowedPattern": "vpc-[a-z0-9]*",
+            "ConstraintDescription": "can contain only alphanumeric characters, spaces, dashes and underscores.",
+            "Default": "vpc-",
+            "Description": "Id of an exisiting VPC that contains a public subnet i.e. vpc-d54ebebf",
+            "MaxLength": "64",
+            "MinLength": "1",
+            "Type": "String"
+        },
+        "VpcPrivateCIDR": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x.",
+            "Default": "172.16.12.0/24",
+            "Description": "CIDR for new private subnet i.e. 10.0.2.0/24",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        },
+        "VpcPublicSubnetId": {
+            "AllowedPattern": "subnet-[a-z0-9]*",
+            "ConstraintDescription": "can contain only alphanumeric characters, spaces, dashes and underscores.",
+            "Default": "subnet-",
+            "Description": "Id of an exisiting public VPC subnet i.e. subnet-ae4ebec4",
+            "MaxLength": "64",
+            "MinLength": "1",
+            "Type": "String"
+        },
+        "WebServerPort": {
+            "Default": "80",
+            "Description": "The TCP port for the Web Server",
+            "Type": "String"
         }
     },
     "Resources": {
+        "BasePolicy": {
+            "Properties": {
+                "PolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "EC2:DescribeInstances",
+                                "EC2:DescribeInstanceStatus",
+                                "EC2:CreateTags",
+                                "CloudFormation:*",
+                                "dynamodb:*"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*"
+                        }
+                    ]
+                },
+                "PolicyName": "BasePolicy",
+                "Roles": [
+                    {
+                        "Ref": "ServerRole"
+                    },
+                    {
+                        "Ref": "ClientRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::Policy"
+        },
+        "ClientInstanceProfile": {
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "ClientRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::InstanceProfile"
+        },
         "ClientLaunchConfig": {
             "Metadata": {
                 "AWS::CloudFormation::Init": {
@@ -305,7 +416,7 @@
             },
             "Properties": {
                 "IamInstanceProfile": {
-                    "Ref": "RootInstanceProfile"
+                    "Ref": "ClientInstanceProfile"
                 },
                 "ImageId": {
                     "Fn::FindInMap": [
@@ -329,7 +440,7 @@
                 },
                 "SecurityGroups": [
                     {
-                        "Ref": "InstanceSecurityGroup"
+                        "Ref": "LustreSecurityGroup"
                     }
                 ],
                 "UserData": {
@@ -342,7 +453,8 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " -r ClientLaunchConfig --region ",
+                                " -r ClientLaunchConfig ",
+                                "   --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -359,7 +471,10 @@
             "Properties": {
                 "AvailabilityZones": [
                     {
-                        "Ref": "LustreAZ"
+                        "Fn::GetAtt": [
+                            "PrivateSubnet",
+                            "AvailabilityZone"
+                        ]
                     }
                 ],
                 "DesiredCapacity": "1",
@@ -381,57 +496,211 @@
                             "Ref": "AWS::StackId"
                         }
                     }
+                ],
+                "VPCZoneIdentifier": [
+                    {
+                        "Ref": "PrivateSubnet"
+                    }
                 ]
             },
             "Type": "AWS::AutoScaling::AutoScalingGroup"
         },
-        "InstanceSecurityGroup": {
+        "ClientRole": {
             "Properties": {
-                "GroupDescription": "Enable SSH access via port 22 and Lustre port 988",
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Path": "/"
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "ELBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "External access to MGS",
+                "SecurityGroupEgress": [
+                    {
+                        "DestinationSecurityGroupId": {
+                            "Ref": "LustreSecurityGroup"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    }
+                ],
                 "SecurityGroupIngress": [
                     {
-                        "CidrIp": "0.0.0.0/0",
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
                         "FromPort": "22",
                         "IpProtocol": "tcp",
                         "ToPort": "22"
                     },
                     {
-                        "CidrIp": "0.0.0.0/0",
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
                         "FromPort": "80",
                         "IpProtocol": "tcp",
                         "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "HTTPFrom"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "SSHFrom"
+                        },
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
                     }
-                ]
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
             },
             "Type": "AWS::EC2::SecurityGroup"
         },
-        "LocalSGIngress": {
+        "ElasticLoadBalancer": {
+            "Properties": {
+                "HealthCheck": {
+                    "HealthyThreshold": "2",
+                    "Interval": "30",
+                    "Target": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "TCP:",
+                                {
+                                    "Ref": "WebServerPort"
+                                }
+                            ]
+                        ]
+                    },
+                    "Timeout": "5",
+                    "UnhealthyThreshold": "10"
+                },
+                "Listeners": [
+                    {
+                        "InstancePort": {
+                            "Ref": "WebServerPort"
+                        },
+                        "LoadBalancerPort": "80",
+                        "Protocol": "HTTP"
+                    }
+                ],
+                "SecurityGroups": [
+                    {
+                        "Ref": "ELBSecurityGroup"
+                    }
+                ],
+                "Subnets": [
+                    {
+                        "Ref": "VpcPublicSubnetId"
+                    }
+                ]
+            },
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        },
+        "InboundPrivateNetworkAclEntry": {
+            "Properties": {
+                "CidrBlock": "0.0.0.0/0",
+                "Egress": "false",
+                "NetworkAclId": {
+                    "Ref": "PrivateNetworkAcl"
+                },
+                "PortRange": {
+                    "From": "0",
+                    "To": "65535"
+                },
+                "Protocol": "-1",
+                "RuleAction": "allow",
+                "RuleNumber": "100"
+            },
+            "Type": "AWS::EC2::NetworkAclEntry"
+        },
+        "LustreInternalSecurityGroupIngress": {
             "Properties": {
                 "FromPort": "0",
-                "GroupName": {
-                    "Ref": "InstanceSecurityGroup"
+                "GroupId": {
+                    "Ref": "LustreSecurityGroup"
                 },
-                "IpProtocol": "tcp",
-                "SourceSecurityGroupName": {
-                    "Ref": "InstanceSecurityGroup"
+                "IpProtocol": "-1",
+                "SourceSecurityGroupId": {
+                    "Ref": "LustreSecurityGroup"
                 },
                 "ToPort": "65535"
             },
             "Type": "AWS::EC2::SecurityGroupIngress"
         },
-        "LocalUDPSGIngress": {
+        "LustreSecurityGroup": {
             "Properties": {
-                "FromPort": "0",
-                "GroupName": {
-                    "Ref": "InstanceSecurityGroup"
-                },
-                "IpProtocol": "udp",
-                "SourceSecurityGroupName": {
-                    "Ref": "InstanceSecurityGroup"
-                },
-                "ToPort": "65535"
+                "GroupDescription": "Subnet access to Lustre servers",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
+                        "FromPort": "988",
+                        "IpProtocol": "tcp",
+                        "ToPort": "988"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "HTTPFrom"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "SSHFrom"
+                        },
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
             },
-            "Type": "AWS::EC2::SecurityGroupIngress"
+            "Type": "AWS::EC2::SecurityGroup"
         },
         "MDSLaunchConfig": {
             "Metadata": {
@@ -552,7 +821,7 @@
                 ],
                 "EbsOptimized": "true",
                 "IamInstanceProfile": {
-                    "Ref": "RootInstanceProfile"
+                    "Ref": "ServerInstanceProfile"
                 },
                 "ImageId": {
                     "Fn::FindInMap": [
@@ -576,7 +845,7 @@
                 },
                 "SecurityGroups": [
                     {
-                        "Ref": "InstanceSecurityGroup"
+                        "Ref": "LustreSecurityGroup"
                     }
                 ],
                 "UserData": {
@@ -589,7 +858,8 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " -r MDSLaunchConfig --region ",
+                                " -r MDSLaunchConfig ",
+                                "   --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -606,7 +876,10 @@
             "Properties": {
                 "AvailabilityZones": [
                     {
-                        "Ref": "LustreAZ"
+                        "Fn::GetAtt": [
+                            "PrivateSubnet",
+                            "AvailabilityZone"
+                        ]
                     }
                 ],
                 "DesiredCapacity": "1",
@@ -628,11 +901,16 @@
                             "Ref": "AWS::StackId"
                         }
                     }
+                ],
+                "VPCZoneIdentifier": [
+                    {
+                        "Ref": "PrivateSubnet"
+                    }
                 ]
             },
             "Type": "AWS::AutoScaling::AutoScalingGroup"
         },
-        "MGSNode": {
+        "MGSLaunchConfig": {
             "Metadata": {
                 "AWS::CloudFormation::Init": {
                     "config": {
@@ -705,8 +983,9 @@
                         }
                     }
                 ],
+                "EbsOptimized": "true",
                 "IamInstanceProfile": {
-                    "Ref": "RootInstanceProfile"
+                    "Ref": "ServerInstanceProfile"
                 },
                 "ImageId": {
                     "Fn::FindInMap": [
@@ -717,31 +996,19 @@
                         {
                             "Fn::FindInMap": [
                                 "AWSInstanceType2Arch",
-                                "c3.large",
+                                "c3.xlarge",
                                 "Arch"
                             ]
                         }
                     ]
                 },
-                "InstanceType": "c3.large",
+                "InstanceType": "c3.xlarge",
                 "KeyName": {
                     "Ref": "KeyName"
                 },
                 "SecurityGroups": [
                     {
-                        "Ref": "InstanceSecurityGroup"
-                    }
-                ],
-                "Tags": [
-                    {
-                        "Key": "lustre:type",
-                        "Value": "mgt"
-                    },
-                    {
-                        "Key": "loci:application",
-                        "Value": {
-                            "Ref": "AWS::StackId"
-                        }
+                        "Ref": "LustreSecurityGroup"
                     }
                 ],
                 "UserData": {
@@ -754,7 +1021,7 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " -r MGSNode ",
+                                " -r MGSLaunchConfig",
                                 "   --region ",
                                 {
                                     "Ref": "AWS::Region"
@@ -766,7 +1033,157 @@
                     }
                 }
             },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        },
+        "MGSNodes": {
+            "Properties": {
+                "AvailabilityZones": [
+                    {
+                        "Fn::GetAtt": [
+                            "PrivateSubnet",
+                            "AvailabilityZone"
+                        ]
+                    }
+                ],
+                "DesiredCapacity": 1,
+                "LaunchConfigurationName": {
+                    "Ref": "MGSLaunchConfig"
+                },
+                "LoadBalancerNames": [
+                    {
+                        "Ref": "ElasticLoadBalancer"
+                    }
+                ],
+                "MaxSize": 1,
+                "MinSize": 1,
+                "Tags": [
+                    {
+                        "Key": "lustre:type",
+                        "PropagateAtLaunch": "true",
+                        "Value": "mgt"
+                    },
+                    {
+                        "Key": "loci:application",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ],
+                "VPCZoneIdentifier": [
+                    {
+                        "Ref": "PrivateSubnet"
+                    }
+                ]
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        },
+        "NATDevice": {
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSNATAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "AMI"
+                    ]
+                },
+                "InstanceType": {
+                    "Ref": "NATInstanceType"
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "AssociatePublicIpAddress": "true",
+                        "DeleteOnTermination": "true",
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "NATSecurityGroup"
+                            }
+                        ],
+                        "SubnetId": {
+                            "Ref": "VpcPublicSubnetId"
+                        }
+                    }
+                ],
+                "SourceDestCheck": "false",
+                "Tags": [
+                    {
+                        "Key": "loci:application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Network",
+                        "Value": "Public"
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "NATDevice"
+                    }
+                ]
+            },
             "Type": "AWS::EC2::Instance"
+        },
+        "NATSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Enable internal access to the NAT device",
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "443",
+                        "IpProtocol": "tcp",
+                        "ToPort": "443"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ],
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Ref": "VpcPrivateCIDR"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "VpcPrivateCIDR"
+                        },
+                        "FromPort": "443",
+                        "IpProtocol": "tcp",
+                        "ToPort": "443"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "SSHFrom"
+                        },
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::SecurityGroup"
         },
         "OSSLaunchConfig": {
             "Metadata": {
@@ -831,63 +1248,63 @@
                     {
                         "DeviceName": "/dev/sdf",
                         "Ebs": {
-                            "VolumeSize": "100",
+                            "VolumeSize": "1000",
                             "VolumeType": "gp2"
                         }
                     },
                     {
                         "DeviceName": "/dev/sdg",
                         "Ebs": {
-                            "VolumeSize": "100",
+                            "VolumeSize": "1000",
                             "VolumeType": "gp2"
                         }
                     },
                     {
                         "DeviceName": "/dev/sdh",
                         "Ebs": {
-                            "VolumeSize": "100",
+                            "VolumeSize": "1000",
                             "VolumeType": "gp2"
                         }
                     },
                     {
                         "DeviceName": "/dev/sdi",
                         "Ebs": {
-                            "VolumeSize": "100",
+                            "VolumeSize": "1000",
                             "VolumeType": "gp2"
                         }
                     },
                     {
                         "DeviceName": "/dev/sdj",
                         "Ebs": {
-                            "VolumeSize": "100",
+                            "VolumeSize": "1000",
                             "VolumeType": "gp2"
                         }
                     },
                     {
                         "DeviceName": "/dev/sdk",
                         "Ebs": {
-                            "VolumeSize": "100",
+                            "VolumeSize": "1000",
                             "VolumeType": "gp2"
                         }
                     },
                     {
                         "DeviceName": "/dev/sdl",
                         "Ebs": {
-                            "VolumeSize": "100",
+                            "VolumeSize": "1000",
                             "VolumeType": "gp2"
                         }
                     },
                     {
                         "DeviceName": "/dev/sdm",
                         "Ebs": {
-                            "VolumeSize": "100",
+                            "VolumeSize": "1000",
                             "VolumeType": "gp2"
                         }
                     }
                 ],
                 "EbsOptimized": "true",
                 "IamInstanceProfile": {
-                    "Ref": "RootInstanceProfile"
+                    "Ref": "ServerInstanceProfile"
                 },
                 "ImageId": {
                     "Fn::FindInMap": [
@@ -911,7 +1328,7 @@
                 },
                 "SecurityGroups": [
                     {
-                        "Ref": "InstanceSecurityGroup"
+                        "Ref": "LustreSecurityGroup"
                     }
                 ],
                 "UserData": {
@@ -924,7 +1341,8 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " -r OSSLaunchConfig --region ",
+                                " -r OSSLaunchConfig ",
+                                "   --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -946,15 +1364,18 @@
             "Properties": {
                 "AvailabilityZones": [
                     {
-                        "Ref": "LustreAZ"
+                        "Fn::GetAtt": [
+                            "PrivateSubnet",
+                            "AvailabilityZone"
+                        ]
                     }
                 ],
-                "DesiredCapacity": "8",
+                "DesiredCapacity": "4",
                 "LaunchConfigurationName": {
                     "Ref": "OSSLaunchConfig"
                 },
-                "MaxSize": "8",
-                "MinSize": "8",
+                "MaxSize": "4",
+                "MinSize": "4",
                 "Tags": [
                     {
                         "Key": "lustre:type",
@@ -968,6 +1389,11 @@
                             "Ref": "AWS::StackId"
                         }
                     }
+                ],
+                "VPCZoneIdentifier": [
+                    {
+                        "Ref": "PrivateSubnet"
+                    }
                 ]
             },
             "Type": "AWS::AutoScaling::AutoScalingGroup"
@@ -975,7 +1401,7 @@
         "OssWaitCondition": {
             "DependsOn": "OSSNodes",
             "Properties": {
-                "Count": "8",
+                "Count": "4",
                 "Handle": {
                     "Ref": "OssWaitHandle"
                 },
@@ -987,44 +1413,172 @@
             "Properties": {},
             "Type": "AWS::CloudFormation::WaitConditionHandle"
         },
-        "RolePolicies": {
+        "OutBoundPrivateNetworkAclEntry": {
+            "Properties": {
+                "CidrBlock": "0.0.0.0/0",
+                "Egress": "true",
+                "NetworkAclId": {
+                    "Ref": "PrivateNetworkAcl"
+                },
+                "PortRange": {
+                    "From": "0",
+                    "To": "65535"
+                },
+                "Protocol": "-1",
+                "RuleAction": "allow",
+                "RuleNumber": "100"
+            },
+            "Type": "AWS::EC2::NetworkAclEntry"
+        },
+        "PrivateNetworkAcl": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "loci:application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Network",
+                        "Value": "Private"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::NetworkAcl"
+        },
+        "PrivateRouteGateway": {
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "InstanceId": {
+                    "Ref": "NATDevice"
+                },
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            },
+            "Type": "AWS::EC2::Route"
+        },
+        "PrivateRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "loci:application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Network",
+                        "Value": "Private"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "PrivateSubnet": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "NATDevice",
+                        "AvailabilityZone"
+                    ]
+                },
+                "CidrBlock": {
+                    "Ref": "VpcPrivateCIDR"
+                },
+                "Tags": [
+                    {
+                        "Key": "loci:application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Network",
+                        "Value": "Private"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::Subnet"
+        },
+        "PrivateSubnetNetworkAclAssociation": {
+            "Properties": {
+                "NetworkAclId": {
+                    "Ref": "PrivateNetworkAcl"
+                },
+                "SubnetId": {
+                    "Ref": "PrivateSubnet"
+                }
+            },
+            "Type": "AWS::EC2::SubnetNetworkAclAssociation"
+        },
+        "PrivateSubnetRouteTableAssociation": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                },
+                "SubnetId": {
+                    "Ref": "PrivateSubnet"
+                }
+            },
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "ServerInstanceProfile": {
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "ServerRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::InstanceProfile"
+        },
+        "ServerPolicy": {
             "Properties": {
                 "PolicyDocument": {
                     "Statement": [
                         {
                             "Action": [
-                                "EC2:DescribeInstances",
-                                "EC2:DescribeInstanceStatus",
-                                "EC2:CreateTags",
-                                "CloudFormation:*",
-                                "dynamodb:*"
+                                "ec2:AttachNetworkInterface",
+                                "ec2:AttachVolume",
+                                "ec2:CreateNetworkInterface",
+                                "ec2:CreateVolume",
+                                "ec2:DeleteNetworkInterface",
+                                "ec2:DeleteVolume",
+                                "ec2:DetachNetworkInterface",
+                                "ec2:DetachVolume",
+                                "ec2:DescribeNetworkInterfaces",
+                                "ec2:DescribeNetworkInterfaceAttribute",
+                                "ec2:DescribeVolumes",
+                                "ec2:DescribeVolumeAttribute",
+                                "ec2:DescribeVolumeStatus"
                             ],
                             "Effect": "Allow",
                             "Resource": "*"
                         }
                     ]
                 },
-                "PolicyName": "root",
+                "PolicyName": "ServerPolicy",
                 "Roles": [
                     {
-                        "Ref": "RootRole"
+                        "Ref": "ServerRole"
                     }
                 ]
             },
             "Type": "AWS::IAM::Policy"
         },
-        "RootInstanceProfile": {
-            "Properties": {
-                "Path": "/",
-                "Roles": [
-                    {
-                        "Ref": "RootRole"
-                    }
-                ]
-            },
-            "Type": "AWS::IAM::InstanceProfile"
-        },
-        "RootRole": {
+        "ServerRole": {
             "Properties": {
                 "AssumeRolePolicyDocument": {
                     "Statement": [
@@ -1050,6 +1604,21 @@
                 "KeySchema": {
                     "HashKeyElement": {
                         "AttributeName": "id",
+                        "AttributeType": "S"
+                    }
+                },
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": "10",
+                    "WriteCapacityUnits": "5"
+                }
+            },
+            "Type": "AWS::DynamoDB::Table"
+        },
+        "lustremdRoles": {
+            "Properties": {
+                "KeySchema": {
+                    "HashKeyElement": {
+                        "AttributeName": "network_interface_id",
                         "AttributeType": "S"
                     }
                 },

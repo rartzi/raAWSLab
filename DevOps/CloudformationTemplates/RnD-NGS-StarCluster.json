@@ -14,7 +14,7 @@
     "CostCenter" : {
       "Description" : "Cost Center to associate with",
       "Type" : "String",
-      "Default" : "RnDCloud-Operation"
+      "Default" : "740146"
     },
     "AccountNumber" : {
       "Description" : "Twelve digit AWS account number.",
@@ -25,12 +25,12 @@
     "VPCId" : {
       "Description" : "Specifies the ID of the VPC that you want to launch the Cluster Controller into",
       "Type" : "String",
-      "Default" : "vpc-9bf44bfe"
+      "Default" : "vpc-a92099cc"
     },
     "SubnetId" : {
       "Description" : "Specifies the ID of the subnet that you want to launch the Cluster Controller into",
       "Type" : "String",
-      "Default" : "subnet-142ff263"
+      "Default" : "subnet-f0c41a87"
     }, 
     "NASServerIP" : {
       "Description" : "Nas Server Mount IP",
@@ -154,6 +154,7 @@
 			"UserData" : { "Fn::Base64" : { "Fn::Join" : ["", 
 			           [
 						"#!/bin/sh\n",
+						"set -x\n",
 			            "/opt/aws/bin/cfn-init ", " -s ", { "Ref" : "AWS::StackName" }, " -r StarClusterController ", 
 			              "--access-key=", { "Ref" : "ClusterUserKeys" }, " ", "--secret-key=", { "Fn::GetAtt" : ["ClusterUserKeys", "SecretAccessKey"]}, "\n",
 						"cd /usr/src/pycrypto/pycrypto-2.4; /usr/bin/python setup.py build\n",
@@ -162,10 +163,9 @@
 						"cd /usr/local/starcluster; /usr/bin/python setup.py install\n",
   					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.starcluster\n",
 					    "/usr/bin/ruby /home/ec2-user/admin/parser.rb /home/ec2-user/.config/config_template.erb /home/ec2-user/.config/values.yml > /home/ec2-user/.starcluster/config\n",
-					    "/usr/bin/ruby /home/ec2-user/admin/parser.rb /home/ec2-user/.config/plugins_bundle.erb /home/ec2-user/.config/plugin_values.yml > /home/ec2-user/.starcluster/plugins_bundle.ngs\n",
-					    "/usr/bin/starcluster -c /home/ec2-user/.starcluster/config createkey ", { "Ref" : "ClusterKeypair" }, " -o /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n",
+					    "/usr/bin/starcluster -c /home/ec2-user/.starcluster/config createkey ", { "Ref" : "ClusterKeypair" }, " -o /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" } ,".rsa", "\n",
 					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n",
-					    "/bin/chmod  0664 /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n"
+					    "/bin/chmod  0400 /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n"
 						]]}}	
 	      },
 	      "Metadata" : {
@@ -210,20 +210,7 @@
 					"/home/ec2-user/.config/config_template.erb" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
 						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/config/config_template.erb" 
-					},
-					"/home/ec2-user/.config/plugins_bundle.erb" : {
-						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
-						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/config/plugins_bundle.erb" 
-					},
-					"/home/ec2-user/.config/plugin_values.yml" : {
-						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
-						"content" : { "Fn::Join" : ["", [
-						    "values:\n",
-							"  gluster_server_node_ip: ", { "Ref" : "NASServerIP" },"\n",
-							"  gluster_volume_name: glusterfs", "\n",
-							"  gluster_shared_mount_point: ", "/mnt_ngs", "\n"
-		             	] ] }
-		        	},		
+					},		
 					"/home/ec2-user/.config/values.yml" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
 						"content" : { "Fn::Join" : ["", [
@@ -240,7 +227,11 @@
 							"  cloud_project: " ,{ "Ref" : "CloudProject"}, "\n",
 							"  cost_center: " ,{ "Ref" : "CostCenter"}, "\n",
 							"  max_spot_bid_price: ", { "Ref" : "SpotPrice"}, "\n",
-							"  user_local_volume_id: vol-001b9648", "\n"
+							"  user_local_volume_id: vol-001b9648", "\n",						
+							"  gluster_server_node_ip: ", { "Ref" : "NASServerIP" },"\n",
+							"  gluster_volume_name: glusterfs", "\n",
+							"  gluster_shared_mount_point: ", "/mnt_ngs", "\n"
+
 		             	] ] }
 		        	}
 				}	

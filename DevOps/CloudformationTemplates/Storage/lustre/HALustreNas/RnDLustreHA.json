@@ -1,0 +1,1873 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create a Lustre cluster with 4 Object Storage Servers using EBS volumes. **WARNING** This template creates multiple Amazon EC2 instances and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+    "Mappings": {
+        "AWSInstanceType2Arch": {
+            "c1.medium": {
+                "Arch": "64"
+            },
+            "c1.xlarge": {
+                "Arch": "64"
+            },
+            "c3.2xlarge": {
+                "Arch": "64HVM"
+            },
+            "c3.4xlarge": {
+                "Arch": "64HVM"
+            },
+            "c3.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "c3.large": {
+                "Arch": "64HVM"
+            },
+            "c3.xlarge": {
+                "Arch": "64HVM"
+            },
+            "cc1.4xlarge": {
+                "Arch": "64HVM"
+            },
+            "cc2.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "hi1.4xlarge": {
+                "Arch": "64"
+            },
+            "hs1.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "i2.2xlarge": {
+                "Arch": "64HVM"
+            },
+            "i2.4xlarge": {
+                "Arch": "64HVM"
+            },
+            "i2.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "i2.xlarge": {
+                "Arch": "64HVM"
+            },
+            "m1.large": {
+                "Arch": "64"
+            },
+            "m1.medium": {
+                "Arch": "64"
+            },
+            "m1.small": {
+                "Arch": "64"
+            },
+            "m1.xlarge": {
+                "Arch": "64"
+            },
+            "m2.2xlarge": {
+                "Arch": "64"
+            },
+            "m2.4xlarge": {
+                "Arch": "64"
+            },
+            "m2.xlarge": {
+                "Arch": "64"
+            },
+            "m3.2xlarge": {
+                "Arch": "64"
+            },
+            "m3.large": {
+                "Arch": "64"
+            },
+            "m3.medium": {
+                "Arch": "64"
+            },
+            "m3.xlarge": {
+                "Arch": "64"
+            },
+            "r3.2xlarge": {
+                "Arch": "64HVM"
+            },
+            "r3.4xlarge": {
+                "Arch": "64HVM"
+            },
+            "r3.8xlarge": {
+                "Arch": "64HVM"
+            },
+            "r3.large": {
+                "Arch": "64HVM"
+            },
+            "r3.xlarge": {
+                "Arch": "64HVM"
+            },
+            "t1.micro": {
+                "Arch": "64"
+            }
+        },
+        "AWSNATAMI": {
+            "ap-northeast-1": {
+                "AMI": "ami-14d86d15"
+            },
+            "ap-southeast-1": {
+                "AMI": "ami-02eb9350"
+            },
+            "eu-west-1": {
+                "AMI": "ami-0b5b6c7f"
+            },
+            "sa-east-1": {
+                "AMI": "ami-0439e619"
+            },
+            "us-east-1": {
+                "AMI": "ami-c6699baf"
+            },
+            "us-west-1": {
+                "AMI": "ami-3bcc9e7e"
+            },
+            "us-west-2": {
+                "AMI": "ami-52ff7262"
+            }
+        },
+        "AWSRegionArch2ServerAMI": {
+            "ap-northeast-1": {
+                "64": "NA",
+                "64HVM": "ami-8fc8848e"
+            },
+            "ap-southeast-1": {
+                "64": "NA",
+                "64HVM": "ami-902e72c2"
+            },
+            "ap-southeast-2": {
+                "64": "NA",
+                "64HVM": "ami-af7f1a95"
+            },
+            "eu-west-1": {
+                "64": "NA",
+                "64HVM": "ami-836ea2f4"
+            },
+            "sa-east-1": {
+                "64": "NA",
+                "64HVM": "ami-d151fdcc"
+            },
+            "us-east-1": {
+                "64": "NA",
+                "64HVM": "ami-58a45530"
+            },
+            "us-west-1": {
+                "64": "NA",
+                "64HVM": "ami-a8efebed"
+            },
+            "us-west-2": {
+                "64": "NA",
+                "64HVM": "ami-11ff8c21"
+            }
+        },
+        "InstanceSpotPrice": {
+            "c3.2xlarge": {
+                "price": "0.60"
+            },
+            "c3.4xlarge": {
+                "price": "1.20"
+            },
+            "c3.8xlarge": {
+                "price": "2.00"
+            },
+            "c3.large": {
+                "price": "0.15"
+            },
+            "c3.xlarge": {
+                "price": "0.30"
+            },
+            "cc2.8xlarge": {
+                "price": "1.00"
+            },
+            "m1.large": {
+                "price": "0.24"
+            },
+            "m1.xlarge": {
+                "price": "0.48"
+            },
+            "m3.2xlarge": {
+                "price": "1.00"
+            },
+            "m3.xlarge": {
+                "price": "0.50"
+            }
+        }
+    },
+    "Outputs": {
+        "Dashboard": {
+            "Description": "Monitoring interface for the Lustre servers.",
+            "Value": {
+                "Fn::Join": [
+                    "",
+                    [
+                        "http://",
+                        {
+                            "Fn::GetAtt": [
+                                "ElasticLoadBalancer",
+                                "DNSName"
+                            ]
+                        },
+                        "/ganglia"
+                    ]
+                ]
+            }
+        },
+        "Gateway": {
+            "Description": "Public IP of NAT gateway, use for SSH access",
+            "Value": {
+                "Fn::GetAtt": [
+                    "NATDevice",
+                    "PublicIp"
+                ]
+            }
+        }
+    },
+    "Parameters": {
+        "AccessFrom": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x.",
+            "Default": "0.0.0.0/0",
+            "Description": "Lockdown access to Lustre services (default is accessiable for 0.0.0.0/0)",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        },
+        "FsName": {
+            "Default": "scratch",
+            "Description": "Name of the lustre filesystem.",
+            "Type": "String"
+        },
+        "HTTPFrom": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x.",
+            "Default": "0.0.0.0/0",
+            "Description": "Lockdown access to Lustre Ganglia on MGS (default is accessiable for 0.0.0.0/0)",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        },
+        "KeyName": {
+            "Description": "Name of and existing EC2 KeyPair to enable SSH access to the instance",
+            "Type": "String"
+        },
+        "NATInstanceType": {
+            "AllowedValues": [
+                "t1.micro",
+                "m1.small",
+                "m1.medium",
+                "m1.large",
+                "m1.xlarge",
+                "m2.xlarge",
+                "m2.2xlarge",
+                "m2.4xlarge",
+                "c1.medium",
+                "c1.xlarge",
+                "cc2.8xlarge"
+            ],
+            "ConstraintDescription": "must be a valid EC2 instance type.",
+            "Default": "m1.medium",
+            "Description": "NAT Device EC2 instance type",
+            "Type": "String"
+        },
+        "OstRaid": {
+            "AllowedValues": [
+                "stripe",
+                "jbod"
+            ],
+            "Default": "stripe",
+            "Description": "Configure how storage is used by the lustre target. Stripe mode creates a single Lustre target on a RAID0 volume containing all available storage volumes. JBOD mode creates one Lustre target per available volume.",
+            "Type": "String"
+        },
+        "SSHFrom": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x.",
+            "Default": "0.0.0.0/0",
+            "Description": "Lockdown SSH access to the NAT host (default can be accessed from anywhere)",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        },
+        "VpcId": {
+            "AllowedPattern": "vpc-[a-z0-9]*",
+            "ConstraintDescription": "can contain only alphanumeric characters, spaces, dashes and underscores.",
+            "Default": "vpc-a92099cc",
+            "Description": "Id of an exisiting VPC that contains a public subnet i.e. vpc-d54ebebf",
+            "MaxLength": "64",
+            "MinLength": "1",
+            "Type": "String"
+        },
+        "VpcPrivateCIDR": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x.",
+            "Default": "10.136.120.0/21",
+            "Description": "CIDR for new private subnet i.e. 10.0.2.0/24",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        },
+        "VpcPublicSubnetId": {
+            "AllowedPattern": "subnet-[a-z0-9]*",
+            "ConstraintDescription": "can contain only alphanumeric characters, spaces, dashes and underscores.",
+            "Default": "subnet-f0c41a87",
+            "Description": "Id of an exisiting public VPC subnet i.e. subnet-ae4ebec4",
+            "MaxLength": "64",
+            "MinLength": "1",
+            "Type": "String"
+        },
+        "CostCenter": {
+            "Default": "740146",
+            "Description": "AZ Cost Center to associate the resource with.",
+            "Type": "String"
+        },
+        "Project": {
+            "Default": "RnD Cloud Infrastructure ",
+            "Description": "AZ Project the resource with.",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "BasePolicy": {
+            "Properties": {
+                "PolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "EC2:DescribeInstances",
+                                "EC2:DescribeInstanceStatus",
+                                "EC2:CreateTags",
+                                "CloudFormation:*",
+                                "dynamodb:*"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*"
+                        }
+                    ]
+                },
+                "PolicyName": "BasePolicy",
+                "Roles": [
+                    {
+                        "Ref": "ServerRole"
+                    },
+                    {
+                        "Ref": "ClientRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::Policy"
+        },
+        "ClientInstanceProfile": {
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "ClientRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::InstanceProfile"
+        },
+        "ClientLaunchConfig": {
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/loci.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[default]\n",
+                                            "FsName: ",
+                                            {
+                                                "Ref": "FsName"
+                                            },
+                                            "\n",
+                                            "FilesystemTable: ",
+                                            {
+                                                "Ref": "lustremd"
+                                            },
+                                            "\n",
+                                            "HaEnabled: ",
+                                            "true",
+                                            "\n",
+                                            "LogDir: ",
+                                            "/var/log",
+                                            "\n",
+                                            "RolesTable: ",
+                                            {
+                                                "Ref": "lustremdRoles"
+                                            },
+                                            "\n",
+                                            "MdtVolumeCount: ",
+                                            "8",
+                                            "\n",
+                                            "OstVolumeCount: ",
+                                            "8",
+                                            "\n",
+                                            "MdsCount: ",
+                                            "1",
+                                            "\n",
+                                            "OssCount: ",
+                                            "4",
+                                            "\n",
+                                            "OstVolumeSize: ",
+                                            "1000",
+                                            "\n",
+                                            "MdtVolumeSize: ",
+                                            "40",
+                                            "\n",
+                                            "MgtVolumeSize: ",
+                                            "5",
+                                            "\n",
+                                            "MgtRootVolumeSize: ",
+                                            "16",
+                                            "\n",
+                                            "MdtRaid: ",
+                                            "stripe",
+                                            "\n",
+                                            "OstRaid:",
+                                            {
+                                                "Ref": "OstRaid"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00644",
+                                "user": "root"
+                            },
+                            "/etc/profile.d/openmpi.sh": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "module add openmpi-x86_64\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "0644",
+                                "owner": "root"
+                            }
+                        },
+                        "packages": {
+                            "yum": {
+                                "bonnie++": [],
+                                "dbench": [],
+                                "environment-modules": [],
+                                "openmpi": [],
+                                "screen": []
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "IamInstanceProfile": {
+                    "Ref": "ClientInstanceProfile"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegionArch2ServerAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap": [
+                                "AWSInstanceType2Arch",
+                                "c3.xlarge",
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring": "false",
+                "InstanceType": "c3.xlarge",
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "LustreSecurityGroup"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ex\n",
+                                "cfn-init -s ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " -r ClientLaunchConfig ",
+                                "   --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "/root/setup-lustre\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        },
+        "ClientNodes": {
+            "Properties": {
+                "AvailabilityZones": [
+                    {
+                        "Fn::GetAtt": [
+                            "PrivateSubnet",
+                            "AvailabilityZone"
+                        ]
+                    }
+                ],
+                "DesiredCapacity": "1",
+                "LaunchConfigurationName": {
+                    "Ref": "ClientLaunchConfig"
+                },
+                "MaxSize": "1",
+                "MinSize": "1",
+                "Tags": [
+                	{
+                        "Key": "CostCenter",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "CostCenter"
+                        }
+                    },
+                    {
+                        "Key": "Project",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "Project"
+                        }
+                    },
+                    {
+                        "Key": "lustre:type",
+                        "PropagateAtLaunch": "true",
+                        "Value": "client"
+                    },
+                    {
+                        "Key": "loci:application",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ],
+                "VPCZoneIdentifier": [
+                    {
+                        "Ref": "PrivateSubnet"
+                    }
+                ]
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        },
+        "ClientRole": {
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Path": "/"
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "ELBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "External access to MGS",
+                "SecurityGroupEgress": [
+                    {
+                        "DestinationSecurityGroupId": {
+                            "Ref": "LustreSecurityGroup"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    }
+                ],
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "HTTPFrom"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "SSHFrom"
+                        },
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "ElasticLoadBalancer": {
+            "Properties": {
+                "HealthCheck": {
+                    "HealthyThreshold": "2",
+                    "Interval": "30",
+                    "Target": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "TCP:",
+                                "80"
+                            ]
+                        ]
+                    },
+                    "Timeout": "5",
+                    "UnhealthyThreshold": "10"
+                },
+                "Listeners": [
+                    {
+                        "InstancePort": "80",
+                        "LoadBalancerPort": "80",
+                        "Protocol": "HTTP"
+                    }
+                ],
+                "SecurityGroups": [
+                    {
+                        "Ref": "ELBSecurityGroup"
+                    }
+                ],
+                "Subnets": [
+                    {
+                        "Ref": "VpcPublicSubnetId"
+                    }
+                ]
+            },
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        },
+        "HaLustreResources": {
+            "DependsOn": [
+                "MGSNodes",
+                "HaResourceQueue",
+                "HaResourceTopic",
+                "HaResourceQueuePolicy"
+            ],
+            "Properties": {
+                "ServiceToken": {
+                    "Ref": "HaResourceTopic"
+                }
+            },
+            "Type": "Custom::HaLustreResources",
+            "Version": "0.1"
+        },
+        "HaResourceQueue": {
+            "Properties": {
+                "ReceiveMessageWaitTimeSeconds": "20",
+                "VisibilityTimeout": "30"
+            },
+            "Type": "AWS::SQS::Queue"
+        },
+        "HaResourceQueuePolicy": {
+            "Properties": {
+                "PolicyDocument": {
+                    "Id": {
+                        "Fn::Join": [
+                            "/",
+                            [
+                                {
+                                    "Fn::GetAtt": [
+                                        "HaResourceQueue",
+                                        "Arn"
+                                    ]
+                                },
+                                "HaResourceQueuePolicy"
+                            ]
+                        ]
+                    },
+                    "Statement": [
+                        {
+                            "Action": "SQS:SendMessage",
+                            "Condition": {
+                                "ArnEquals": {
+                                    "aws:SourceArn": {
+                                        "Ref": "HaResourceTopic"
+                                    }
+                                }
+                            },
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": "*"
+                            },
+                            "Resource": {
+                                "Fn::GetAtt": [
+                                    "HaResourceQueue",
+                                    "Arn"
+                                ]
+                            },
+                            "Sid": "AllowTopicToPublishMessages"
+                        }
+                    ],
+                    "Version": "2008-10-17"
+                },
+                "Queues": [
+                    {
+                        "Ref": "HaResourceQueue"
+                    }
+                ]
+            },
+            "Type": "AWS::SQS::QueuePolicy"
+        },
+        "HaResourceTopic": {
+            "Properties": {
+                "Subscription": [
+                    {
+                        "Endpoint": {
+                            "Fn::GetAtt": [
+                                "HaResourceQueue",
+                                "Arn"
+                            ]
+                        },
+                        "Protocol": "sqs"
+                    }
+                ]
+            },
+            "Type": "AWS::SNS::Topic"
+        },
+        "InboundPrivateNetworkAclEntry": {
+            "DependsOn": "PrivateNetworkAcl",
+            "Properties": {
+                "CidrBlock": "0.0.0.0/0",
+                "Egress": "false",
+                "NetworkAclId": {
+                    "Ref": "PrivateNetworkAcl"
+                },
+                "PortRange": {
+                    "From": "0",
+                    "To": "65535"
+                },
+                "Protocol": "-1",
+                "RuleAction": "allow",
+                "RuleNumber": "100"
+            },
+            "Type": "AWS::EC2::NetworkAclEntry"
+        },
+        "LustreInternalSecurityGroupIngress": {
+            "Properties": {
+                "FromPort": "0",
+                "GroupId": {
+                    "Ref": "LustreSecurityGroup"
+                },
+                "IpProtocol": "-1",
+                "SourceSecurityGroupId": {
+                    "Ref": "LustreSecurityGroup"
+                },
+                "ToPort": "65535"
+            },
+            "Type": "AWS::EC2::SecurityGroupIngress"
+        },
+        "LustreSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Subnet access to Lustre servers",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
+                        "FromPort": "988",
+                        "IpProtocol": "tcp",
+                        "ToPort": "988"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "AccessFrom"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "HTTPFrom"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "SSHFrom"
+                        },
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "MDSLaunchConfig": {
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/loci.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[default]\n",
+                                            "FsName: ",
+                                            {
+                                                "Ref": "FsName"
+                                            },
+                                            "\n",
+                                            "FilesystemTable: ",
+                                            {
+                                                "Ref": "lustremd"
+                                            },
+                                            "\n",
+                                            "HaEnabled: ",
+                                            "true",
+                                            "\n",
+                                            "LogDir: ",
+                                            "/var/log",
+                                            "\n",
+                                            "RolesTable: ",
+                                            {
+                                                "Ref": "lustremdRoles"
+                                            },
+                                            "\n",
+                                            "MdtVolumeCount: ",
+                                            "8",
+                                            "\n",
+                                            "OstVolumeCount: ",
+                                            "8",
+                                            "\n",
+                                            "MdsCount: ",
+                                            "1",
+                                            "\n",
+                                            "OssCount: ",
+                                            "4",
+                                            "\n",
+                                            "OstVolumeSize: ",
+                                            "100",
+                                            "\n",
+                                            "MdtVolumeSize: ",
+                                            "40",
+                                            "\n",
+                                            "MgtVolumeSize: ",
+                                            "5",
+                                            "\n",
+                                            "MgtRootVolumeSize: ",
+                                            "16",
+                                            "\n",
+                                            "MdtRaid: ",
+                                            "stripe",
+                                            "\n",
+                                            "OstRaid:",
+                                            {
+                                                "Ref": "OstRaid"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00644",
+                                "user": "root"
+                            },
+                            "/etc/sudoers.d/999-requiretty": {
+                                "content": "Defaults !requiretty\n\n",
+                                "group": "root",
+                                "mode": "00400",
+                                "user": "root"
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "EbsOptimized": "true",
+                "IamInstanceProfile": {
+                    "Ref": "ServerInstanceProfile"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegionArch2ServerAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap": [
+                                "AWSInstanceType2Arch",
+                                "c3.4xlarge",
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring": "false",
+                "InstanceType": "c3.4xlarge",
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "LustreSecurityGroup"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ex\n",
+                                "cfn-init -s ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " -r MDSLaunchConfig ",
+                                "   --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "/root/setup-lustre\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        },
+        "MDSNodes": {
+            "Properties": {
+                "AvailabilityZones": [
+                    {
+                        "Fn::GetAtt": [
+                            "PrivateSubnet",
+                            "AvailabilityZone"
+                        ]
+                    }
+                ],
+                "DesiredCapacity": "1",
+                "LaunchConfigurationName": {
+                    "Ref": "MDSLaunchConfig"
+                },
+                "MaxSize": "1",
+                "MinSize": "1",
+                "Tags": [
+                	{
+                        "Key": "CostCenter",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "CostCenter"
+                        }
+                    },
+                    {
+                        "Key": "Project",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "Project"
+                        }
+                    },
+                    {
+                        "Key": "lustre:type",
+                        "PropagateAtLaunch": "true",
+                        "Value": "mdt"
+                    },
+                    {
+                        "Key": "loci:application",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ],
+                "VPCZoneIdentifier": [
+                    {
+                        "Ref": "PrivateSubnet"
+                    }
+                ]
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        },
+        "MGSLaunchConfig": {
+            "DependsOn": [
+                "ServerRole",
+                "ServerInstanceProfile"
+            ],
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/cfn/bridge.d/ha_lustre_resources.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[ha_lustre_volumes]\n",
+                                            "resource_type=Custom::HaLustreResources\n",
+                                            "queue_url=",
+                                            {
+                                                "Ref": "HaResourceQueue"
+                                            },
+                                            "\n",
+                                            "default_action=/usr/bin/loci_cfn_bridge\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "/etc/loci.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[default]\n",
+                                            "FsName: ",
+                                            {
+                                                "Ref": "FsName"
+                                            },
+                                            "\n",
+                                            "FilesystemTable: ",
+                                            {
+                                                "Ref": "lustremd"
+                                            },
+                                            "\n",
+                                            "HaEnabled: ",
+                                            "true",
+                                            "\n",
+                                            "LogDir: ",
+                                            "/var/log",
+                                            "\n",
+                                            "RolesTable: ",
+                                            {
+                                                "Ref": "lustremdRoles"
+                                            },
+                                            "\n",
+                                            "MdtVolumeCount: ",
+                                            "8",
+                                            "\n",
+                                            "OstVolumeCount: ",
+                                            "8",
+                                            "\n",
+                                            "MdsCount: ",
+                                            "1",
+                                            "\n",
+                                            "OssCount: ",
+                                            "4",
+                                            "\n",
+                                            "OstVolumeSize: ",
+                                            "100",
+                                            "\n",
+                                            "MdtVolumeSize: ",
+                                            "40",
+                                            "\n",
+                                            "MgtVolumeSize: ",
+                                            "5",
+                                            "\n",
+                                            "MgtRootVolumeSize: ",
+                                            "16",
+                                            "\n",
+                                            "MdtRaid: ",
+                                            "stripe",
+                                            "\n",
+                                            "OstRaid:",
+                                            {
+                                                "Ref": "OstRaid"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00644",
+                                "user": "root"
+                            },
+                            "/etc/sudoers.d/999-requiretty": {
+                                "content": "Defaults !requiretty\n",
+                                "group": "root",
+                                "mode": "00400",
+                                "user": "root"
+                            }
+                        },
+                        "services": {
+                            "sysvinit": {
+                                "cfn-resource-bridge": {
+                                    "enabled": "true",
+                                    "ensureRunning": "true"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "EbsOptimized": "true",
+                "IamInstanceProfile": {
+                    "Ref": "ServerInstanceProfile"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegionArch2ServerAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap": [
+                                "AWSInstanceType2Arch",
+                                "c3.xlarge",
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceType": "c3.xlarge",
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "LustreSecurityGroup"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ex\n",
+                                "cfn-init -s ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " -r MGSLaunchConfig ",
+                                "     --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "/root/setup-lustre\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        },
+        "MGSNodes": {
+            "DependsOn": [
+                "ServerPolicy",
+                "MGSLaunchConfig",
+                "lustremd",
+                "lustremdRoles",
+                "PrivateSubnet",
+                "PrivateRouteGateway"
+            ],
+            "Properties": {
+                "AvailabilityZones": [
+                    {
+                        "Fn::GetAtt": [
+                            "PrivateSubnet",
+                            "AvailabilityZone"
+                        ]
+                    }
+                ],
+                "DesiredCapacity": 1,
+                "LaunchConfigurationName": {
+                    "Ref": "MGSLaunchConfig"
+                },
+                "LoadBalancerNames": [
+                    {
+                        "Ref": "ElasticLoadBalancer"
+                    }
+                ],
+                "MaxSize": 1,
+                "MinSize": 1,
+                "Tags": [
+                	{
+                        "Key": "CostCenter",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "CostCenter"
+                        }
+                    },
+                    {
+                        "Key": "Project",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "Project"
+                        }
+                    },
+                    {
+                        "Key": "lustre:type",
+                        "PropagateAtLaunch": "true",
+                        "Value": "mgt"
+                    },
+                    {
+                        "Key": "loci:application",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ],
+                "VPCZoneIdentifier": [
+                    {
+                        "Ref": "PrivateSubnet"
+                    }
+                ]
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        },
+        "NATDevice": {
+            "DependsOn": [
+                "NATSecurityGroup"
+            ],
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSNATAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "AMI"
+                    ]
+                },
+                "InstanceType": {
+                    "Ref": "NATInstanceType"
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "AssociatePublicIpAddress": "true",
+                        "DeleteOnTermination": "true",
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "NATSecurityGroup"
+                            }
+                        ],
+                        "SubnetId": {
+                            "Ref": "VpcPublicSubnetId"
+                        }
+                    }
+                ],
+                "SourceDestCheck": "false",
+                "Tags": [
+                	{
+                        "Key": "CostCenter",
+                        "Value": {
+                            "Ref": "CostCenter"
+                        }
+                    },
+                    {
+                        "Key": "Project",
+                        "Value": {
+                            "Ref": "Project"
+                        }
+                    },
+                    {
+                        "Key": "loci:application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Network",
+                        "Value": "Public"
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "NATDevice" ]]}
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::Instance"
+        },
+        "NATSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Enable internal access to the NAT device",
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "443",
+                        "IpProtocol": "tcp",
+                        "ToPort": "443"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ],
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Ref": "VpcPrivateCIDR"
+                        },
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "VpcPrivateCIDR"
+                        },
+                        "FromPort": "443",
+                        "IpProtocol": "tcp",
+                        "ToPort": "443"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "SSHFrom"
+                        },
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "OSSLaunchConfig": {
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/loci.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[default]\n",
+                                            "FsName: ",
+                                            {
+                                                "Ref": "FsName"
+                                            },
+                                            "\n",
+                                            "FilesystemTable: ",
+                                            {
+                                                "Ref": "lustremd"
+                                            },
+                                            "\n",
+                                            "HaEnabled: ",
+                                            "true",
+                                            "\n",
+                                            "LogDir: ",
+                                            "/var/log",
+                                            "\n",
+                                            "RolesTable: ",
+                                            {
+                                                "Ref": "lustremdRoles"
+                                            },
+                                            "\n",
+                                            "MdtVolumeCount: ",
+                                            "8",
+                                            "\n",
+                                            "OstVolumeCount: ",
+                                            "8",
+                                            "\n",
+                                            "MdsCount: ",
+                                            "1",
+                                            "\n",
+                                            "OssCount: ",
+                                            "4",
+                                            "\n",
+                                            "OstVolumeSize: ",
+                                            "100",
+                                            "\n",
+                                            "MdtVolumeSize: ",
+                                            "40",
+                                            "\n",
+                                            "MgtVolumeSize: ",
+                                            "5",
+                                            "\n",
+                                            "MgtRootVolumeSize: ",
+                                            "16",
+                                            "\n",
+                                            "MdtRaid: ",
+                                            "stripe",
+                                            "\n",
+                                            "OstRaid:",
+                                            {
+                                                "Ref": "OstRaid"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00644",
+                                "user": "root"
+                            },
+                            "/etc/sudoers.d/999-requiretty": {
+                                "content": "Defaults !requiretty\n",
+                                "group": "root",
+                                "mode": "00400",
+                                "user": "root"
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "EbsOptimized": "true",
+                "IamInstanceProfile": {
+                    "Ref": "ServerInstanceProfile"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegionArch2ServerAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap": [
+                                "AWSInstanceType2Arch",
+                                "c3.2xlarge",
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring": "false",
+                "InstanceType": "c3.2xlarge",
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "LustreSecurityGroup"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ex\n",
+                                "cfn-init -s ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " -r OSSLaunchConfig ",
+                                "   --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "/root/setup-lustre\n",
+                                "cfn-signal -e $? -r 'OSS setup done' '",
+                                {
+                                    "Ref": "OssWaitHandle"
+                                },
+                                "'\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        },
+        "OSSNodes": {
+            "Properties": {
+                "AvailabilityZones": [
+                    {
+                        "Fn::GetAtt": [
+                            "PrivateSubnet",
+                            "AvailabilityZone"
+                        ]
+                    }
+                ],
+                "DesiredCapacity": "4",
+                "LaunchConfigurationName": {
+                    "Ref": "OSSLaunchConfig"
+                },
+                "MaxSize": "4",
+                "MinSize": "4",
+                "Tags": [
+                	{
+                        "Key": "CostCenter",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "CostCenter"
+                        }
+                    },
+                    {
+                        "Key": "Project",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "Project"
+                        }
+                    },
+                    {
+                        "Key": "lustre:type",
+                        "PropagateAtLaunch": "true",
+                        "Value": "ost"
+                    },
+                    {
+                        "Key": "loci:application",
+                        "PropagateAtLaunch": "true",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ],
+                "VPCZoneIdentifier": [
+                    {
+                        "Ref": "PrivateSubnet"
+                    }
+                ]
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        },
+        "OssWaitCondition": {
+            "DependsOn": "OSSNodes",
+            "Properties": {
+                "Count": "4",
+                "Handle": {
+                    "Ref": "OssWaitHandle"
+                },
+                "Timeout": "3600"
+            },
+            "Type": "AWS::CloudFormation::WaitCondition"
+        },
+        "OssWaitHandle": {
+            "Properties": {},
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "OutboundPrivateNetworkAclEntry": {
+            "DependsOn": "PrivateNetworkAcl",
+            "Properties": {
+                "CidrBlock": "0.0.0.0/0",
+                "Egress": "true",
+                "NetworkAclId": {
+                    "Ref": "PrivateNetworkAcl"
+                },
+                "PortRange": {
+                    "From": "0",
+                    "To": "65535"
+                },
+                "Protocol": "-1",
+                "RuleAction": "allow",
+                "RuleNumber": "100"
+            },
+            "Type": "AWS::EC2::NetworkAclEntry"
+        },
+        "PrivateNetworkAcl": {
+            "Properties": {
+                "Tags": [
+                	{
+                        "Key": "CostCenter",
+                        "Value": {
+                            "Ref": "CostCenter"
+                        }
+                    },
+                    {
+                        "Key": "Project",
+                        "Value": {
+                            "Ref": "Project"
+                        }
+                    },
+                    {
+                        "Key": "loci:application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Network",
+                        "Value": "Private"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::NetworkAcl"
+        },
+        "PrivateRouteGateway": {
+            "DependsOn": [
+                "NATDevice",
+                "PrivateSubnetRouteTableAssociation",
+                "PrivateSubnetNetworkAclAssociation"
+            ],
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "InstanceId": {
+                    "Ref": "NATDevice"
+                },
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            },
+            "Type": "AWS::EC2::Route"
+        },
+        "PrivateRouteTable": {
+            "Properties": {
+                "Tags": [
+					{
+                        "Key": "CostCenter",
+                        "Value": {
+                            "Ref": "CostCenter"
+                        }
+                    },
+                    {
+                        "Key": "Project",
+                        "Value": {
+                            "Ref": "Project"
+                        }
+                    },                	
+                    {
+                        "Key": "loci:application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Network",
+                        "Value": "Private"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "PrivateSubnet": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "NATDevice",
+                        "AvailabilityZone"
+                    ]
+                },
+                "CidrBlock": {
+                    "Ref": "VpcPrivateCIDR"
+                },
+                "Tags": [
+                	{
+                        "Key": "CostCenter",
+                        "Value": {
+                            "Ref": "CostCenter"
+                        }
+                    },
+                    {
+                        "Key": "Project",
+                        "Value": {
+                            "Ref": "Project"
+                        }
+                    },
+                    {
+                        "Key": "loci:application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Network",
+                        "Value": "Private"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            },
+            "Type": "AWS::EC2::Subnet"
+        },
+        "PrivateSubnetNetworkAclAssociation": {
+            "DependsOn": [
+                "InboundPrivateNetworkAclEntry",
+                "OutboundPrivateNetworkAclEntry"
+            ],
+            "Properties": {
+                "NetworkAclId": {
+                    "Ref": "PrivateNetworkAcl"
+                },
+                "SubnetId": {
+                    "Ref": "PrivateSubnet"
+                }
+            },
+            "Type": "AWS::EC2::SubnetNetworkAclAssociation"
+        },
+        "PrivateSubnetRouteTableAssociation": {
+            "DependsOn": "PrivateRouteTable",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                },
+                "SubnetId": {
+                    "Ref": "PrivateSubnet"
+                }
+            },
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "ServerInstanceProfile": {
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "ServerRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::InstanceProfile"
+        },
+        "ServerPolicy": {
+            "DependsOn": "BasePolicy",
+            "Properties": {
+                "PolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "ec2:AttachNetworkInterface",
+                                "ec2:AttachVolume",
+                                "ec2:CreateNetworkInterface",
+                                "ec2:CreateVolume",
+                                "ec2:DeleteNetworkInterface",
+                                "ec2:DeleteVolume",
+                                "ec2:DetachNetworkInterface",
+                                "ec2:DetachVolume",
+                                "ec2:DescribeNetworkInterfaces",
+                                "ec2:DescribeNetworkInterfaceAttribute",
+                                "ec2:DescribeVolumes",
+                                "ec2:DescribeVolumeAttribute",
+                                "ec2:DescribeVolumeStatus"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*"
+                        },
+                        {
+                            "Action": [
+                                "sqs:ChangeMessageVisibility",
+                                "sqs:DeleteMessage",
+                                "sqs:ReceiveMessage"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": {
+                                "Fn::GetAtt": [
+                                    "HaResourceQueue",
+                                    "Arn"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "PolicyName": "ServerPolicy",
+                "Roles": [
+                    {
+                        "Ref": "ServerRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::Policy"
+        },
+        "ServerRole": {
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Path": "/"
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "lustremd": {
+            "Properties": {
+                "KeySchema": {
+                    "HashKeyElement": {
+                        "AttributeName": "id",
+                        "AttributeType": "S"
+                    }
+                },
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": "10",
+                    "WriteCapacityUnits": "5"
+                }
+            },
+            "Type": "AWS::DynamoDB::Table"
+        },
+        "lustremdRoles": {
+            "Properties": {
+                "KeySchema": {
+                    "HashKeyElement": {
+                        "AttributeName": "network_interface_id",
+                        "AttributeType": "S"
+                    }
+                },
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": "10",
+                    "WriteCapacityUnits": "5"
+                }
+            },
+            "Type": "AWS::DynamoDB::Table"
+        }
+    }
+}

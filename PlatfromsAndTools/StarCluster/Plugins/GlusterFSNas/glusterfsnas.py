@@ -1,5 +1,5 @@
 import time,re,string
-from starcluster.clustersetup import ClusterSetup
+from starcluster.clustersetup import DefaultClusterSetup
 from starcluster.logger import log
 from pprint import pprint
  
@@ -18,7 +18,7 @@ from pprint import pprint
 # Consider to add desired mount points per Gluster Volume
 
  
-class GlusterServer(ClusterSetup):
+class GlusterServer(DefaultClusterSetup):
      def __init__(self, volumes,transport,replicas,brick_mount_point):
           self.volumes = volumes
           if self.volumes:
@@ -170,8 +170,35 @@ class GlusterServer(ClusterSetup):
                     else:
                          log.info("Probing peers %s" % node.instance.private_ip_address)
                          master.ssh.execute("gluster peer probe %s" % node.instance.private_ip_address)
+                         
+class GlusterfsClientSetup(DefaultClusterSetup):
+	def __init__(self):
+		super(GlusterfsClientSetup, self).__init__()
+		
+	
+	def install_glusterfs_packages(self, nodes):
+		n = 0
+		for node in nodes:
+			result = node.ssh.execute("dpkg -l | grep glusterfs-client", ignore_exit_status=True)
+			if result is None or len(result) == 0:
+				n += 1
+				self.pool.simple_job(node.apt_install, "glusterfs-client", jobid=node.alias)
+
+		if n != 0:
+			log.info("Installing glusterfs-client package on %s node(s)..." % n)
+			self.pool.wait(n)
+			
+	def run(self, nodes, master, user, user_shell):
+		
+		self.ec2 = master.ec2
+		log.info("Setting up glusterfs-client on: %s" % self.name)	
+		self.install_glusterfs_packages(nodes)
+
+	def on_add_node(self, new_node, nodes, master, user, user_shell, volumes):
+		self.ec2 = master.ec2
+		self.install_glusterfs_packages(nodes)                        
  
-class glusterMount(ClusterSetup):
+class glusterMount(DefaultClusterSetup):
      def __init__(self, server,volumes, mountpoint):
           self.server = server
           self.volumes = volumes

@@ -55,13 +55,20 @@ class MountLustre(clustersetup.DefaultClusterSetup):
         log.info('Adding %s cluster security group to %s Lustre security group' % (self.cluster_group.name, self.lustre_security_group))
         self.ec2 = master.ec2
         self.group = self.ec2.get_security_group(self.lustre_security_group)
-
-        port_open = self._has_port(self.group, self.cluster_group)
+		port_open = False
+        try:
+            port_open = self._has_port(self.group, self.cluster_group)
+        except:
+            log.debug('selg_has_port error')
+            port_open = False
         log.debug('port_open = %s' % port_open)
         if not port_open:
-            log.debug('Adding tcp:988 to %s' % self.lustre_security_group)
-            self.group.authorize(ip_protocol='tcp', from_port=988, to_port=988, src_group=self.cluster_group)
-
+            try:
+                log.debug('Adding tcp:988 to %s' % self.lustre_security_group)
+                self.group.authorize(ip_protocol='tcp', from_port=988, to_port=988, src_group=self.cluster_group)
+            except:
+                log.debug('I guess no need to authorise as it might be already there')
+                
         log.info('Mounting %s at %s on all nodes...' % (self.lustre_export, self.lustre_mountpoint))
         for node in nodes:
             self.pool.simple_job(node.ssh.execute,

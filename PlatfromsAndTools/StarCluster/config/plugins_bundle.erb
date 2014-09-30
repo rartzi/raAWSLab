@@ -1,11 +1,10 @@
 #######################################
-## Gazzang Secure Configuration File ##
+##  Configuration File ##
 #######################################
 # Add this configuration file to .starcluster/config by adding
 # the following line under the [global] section
 # [global]
 # INCLUDE = ~/.starcluster/plugins_bundle
-
 ####################################
 ## Configuring GlusterFS Plugins  ##
 ####################################
@@ -25,25 +24,23 @@ ENCRYPT = True
 [plugin tagger]
 setup_class = tagger.TaggerPlugin
 ##add as many key:value pairs as you like separated by ','
-tags = CostCenter:999999, MyDate:[[date]], localuser:[[localuser]]
+tags = CostCenter:740146, MyDate:[[date]], localuser:[[localuser]]
 
 [plugin pkginstaller]
 setup_class = starcluster.plugins.pkginstaller.PackageInstaller
-packages = collectl
+packages = collectl, openjdk-7-jdk
 
 [plugin lustre]
 setup_class = lustre.MountLustre
-lustre_export = ValueLustreExport
-lustre_mountpoint = /lustre/scratch
+lustre_export = IP:/scratch
+lustre_mountpoint = /ngs
 lustre_security_group = SecutiryGroupId
 
-[plugin lustre]
-setup_class = lustre.MountLustre
-lustre_export = ValueLustreExport
-lustre_mountpoint = /lustre/scratch
-lustre_security_group = SecutiryGroupId
+[plugin GlusterfsClientSetup]
+setup_class = glusterfsnas.GlusterfsClientSetup
 
 [plugin glusterMounts]
 setup_class = glusterfsnas.glusterMount
 server = <%= gluster_server_node_ip %>
 volumes = <%= gluster_volume_name %>
+mountpoint = <%= gluster_shared_mount_point %>
