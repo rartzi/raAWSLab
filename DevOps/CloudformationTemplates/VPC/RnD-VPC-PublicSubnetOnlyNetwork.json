@@ -8,8 +8,8 @@
     "RnDCloudRegion" : {
       "Description" : "Provide a region to launch VPC in.",
       "Type" : "String",
-      "Default" : "USEast1",
-      "AllowedValues" : [ "USEast1","EUIrland","APSingapure"],
+      "Default" : "US-East-1",
+      "AllowedValues" : [ "US-East-1","EUIrland","APSingapure"],
       "ConstraintDescription" : "must be a valid AZ RnDCloud VPC Regions"
     },
     
@@ -33,7 +33,7 @@
       "MinLength": "1",
       "MaxLength": "64",
       "AllowedPattern" : "[-_ a-zA-Z0-9]*",
-      "Default" : "starkey",
+      "Default" : "ngs",
       "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
     },
 
@@ -75,24 +75,24 @@
     },
 
     "AWSRegionArch2AMI" : {
-      "us-east-1"      : { "32" : "ami-a0cd60c9", "64" : "ami-aecd60c7", "64Cluster" : "ami-a8cd60c1",      "64GPU" : "ami-eccf6285" },
-      "us-west-2"      : { "32" : "ami-46da5576", "64" : "ami-48da5578", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
-      "us-west-1"      : { "32" : "ami-7d4c6938", "64" : "ami-734c6936", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
-      "eu-west-1"      : { "32" : "ami-61555115", "64" : "ami-6d555119", "64Cluster" : "ami-67555113",      "64GPU" : "NOT_YET_SUPPORTED" },
-      "ap-southeast-1" : { "32" : "ami-220b4a70", "64" : "ami-3c0b4a6e", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
-      "ap-northeast-1" : { "32" : "ami-2a19aa2b", "64" : "ami-2819aa29", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
-      "sa-east-1"      : { "32" : "ami-f836e8e5", "64" : "ami-fe36e8e3", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" }
+      "us-east-1"      : { "32" : "ami-a0cd60c9", "64" : "ami-aecd60c7", "64Cluster" : "ami-a8cd60c1",      "64GPU" : "ami-eccf6285" , "64HVM" : "ami-4583572c"},
+      "us-west-2"      : { "32" : "ami-46da5576", "64" : "ami-48da5578", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" , "64HVM" : "TBD"},
+      "us-west-1"      : { "32" : "ami-7d4c6938", "64" : "ami-734c6936", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" ,"64HVM" : "TBD" },
+      "eu-west-1"      : { "32" : "ami-61555115", "64" : "ami-6d555119", "64Cluster" : "ami-67555113",      "64GPU" : "NOT_YET_SUPPORTED" , "64HVM" : "TBD"},
+      "ap-southeast-1" : { "32" : "ami-220b4a70", "64" : "ami-3c0b4a6e", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" , "64HVM" : "TBD"},
+      "ap-northeast-1" : { "32" : "ami-2a19aa2b", "64" : "ami-2819aa29", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" , "64HVM" : "TBD"},
+      "sa-east-1"      : { "32" : "ami-f836e8e5", "64" : "ami-fe36e8e3", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" , "64HVM" : "TBD"}
     },
 
     
     "RnDCloudVPCConfig" :{
-    	"USEast1" : { "CIDR" : "10.136.0.0/16" },
+    	"US-East-1" : { "CIDR" : "10.136.0.0/16" },
     	"EUIrland" : { "CIDR" : "10.200.0.0/16" },
     	"APSingapure" : { "CIDR" : "10.58.0.0/16" }    	
     },
     
     "RnDCloudSubnets" :{
-    	"USEast1" : 	{ "Public" : ["10.136.8.0/21", "10.136.16.0/21", "10.136.24.0/21" ]  , "DMZ" :["10.136.64.0/21", "10.136.72.0/21", "10.136.80.0/21"], "Private" : ["10.136.120.0/21", "10.136.144.0/21", "10.136.168.0/21"]},
+    	"US-East-1" : 	{ "Public" : ["10.136.8.0/21", "10.136.16.0/21", "10.136.24.0/21" ]  , "DMZ" :["10.136.64.0/21", "10.136.72.0/21", "10.136.80.0/21"], "Private" : ["10.136.120.0/21", "10.136.144.0/21", "10.136.168.0/21"]},
     	"EUIrland" : 	{ "Public" : ["10.200.8.0/21", "10.200.16.0/21", "10.200.24.0/21" ] , "DMZ" :["10.200.64.0/21", "10.200.72.0/21", "10.200.80.0/21"], "Private" : ["10.200.120.0/21", "10.200.144.0/21", "10.200.168.0/21"]  },
     	"APSingapure" : { "Public" : ["10.58.8.0/21", "10.58.16.0/21", "10.58.24.0/21"] , "DMZ" :["10.58.64.0/21", "10.58.72.0/21", "10.58.80.0/21"], "Private" : ["10.58.120.0/21", "10.58.144.0/21", "10.58.168.0/21"] }    	
     },
@@ -335,12 +335,18 @@
       "Value" :  { "Ref" : "VPC" }
     },
  	"PublicSubnetAZ1Id" : {
-      "Description" : "Public Subnet - Availability Zone 1 Id",
-      "Value" :  { "Ref" : "PublicSubnet1" }
+      "Description" : "Public Subnet - Availability Zone 1",
+      "Value" :  { "Fn::Join" : ["", 
+			           [
+						"Public Subnet1\n id: " ,{ "Ref" : "PublicSubnet1" },"\n","AvailabilityZone: " , { "Fn::GetAtt" : [ "PublicSubnet1", "AvailabilityZone" ] }
+						]]}              
     },
    	"PublicSubnetAz2Id" : {
-      "Description" : "Public Subnet - Availability Zone 2 Id",
-      "Value" :  { "Ref" : "PublicSubnet2" }
-    }
+      "Description" : "Public Subnet - Availability Zone 2",
+      "Value" :   { "Fn::Join" : ["", 
+			           [
+						"Public Subnet2\n id: " ,{ "Ref" : "PublicSubnet2" },"\n","AvailabilityZone: " , { "Fn::GetAtt" : [ "PublicSubnet2", "AvailabilityZone" ] }
+						]]}     
+	}
   }
 }

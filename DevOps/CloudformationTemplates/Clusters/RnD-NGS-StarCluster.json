@@ -69,24 +69,16 @@
   "Mappings" : {
     "AWSInstanceType2Arch" : {
       "t1.micro"    : { "Arch" : "64" },
-      "t2.micro"    : { "Arch" : "64" },
-      "t2.medium"    : { "Arch" : "64" },
+      "t2.micro"    : { "Arch" : "64HVM" },
+      "t2.small"    : { "Arch" : "64HVM" },
+      "t2.medium"   : { "Arch" : "64HVM" },      
       "m1.small"    : { "Arch" : "64" },
       "m1.medium"   : { "Arch" : "64" },
-      "m1.large"    : { "Arch" : "64" },
-      "m1.xlarge"   : { "Arch" : "64" },
-      "m2.xlarge"   : { "Arch" : "64" },
-      "m2.2xlarge"  : { "Arch" : "64" },
-      "m2.4xlarge"  : { "Arch" : "64" },
-      "c1.medium"   : { "Arch" : "64" },
-      "c1.xlarge"   : { "Arch" : "64" },
-      "cc1.4xlarge" : { "Arch" : "64HVM" },
-      "cc2.8xlarge" : { "Arch" : "64HVM" },
-      "cg1.4xlarge" : { "Arch" : "64HVM" }
-    },
+      "m3.medium"   : { "Arch" : "64" }
+      },
 
     "AWSRegionArch2AMI" : {
-      "us-east-1"      : { "32" : "ami-899d49e0", "64" : "ami-999d49f0", "64HVM" : "ami-4583572c" }
+      "us-east-1"      : { "32" : "ami-899d49e0", "64" : "ami-999d49f0", "64HVM" : "ami-7a348512" }
     }
 
   },
@@ -230,8 +222,9 @@
 							"  user_local_volume_id: vol-001b9648", "\n",						
 							"  gluster_server_node_ip: ", { "Ref" : "NASServerIP" },"\n",
 							"  gluster_volume_name: glusterfs", "\n",
-							"  gluster_shared_mount_point: ", "/mnt_ngs", "\n"
-
+							"  gluster_shared_mount_point: ", "/mnt/ngs_glusterfs", "\n",
+							"  lustre_shared_mount_point: ", "/mnt/ngs_lustre", "\n",
+							"  gluster_filesystem_type: ", "glusterfs", "\n"
 		             	] ] }
 		        	}
 				}	

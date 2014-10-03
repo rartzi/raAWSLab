@@ -1,0 +1,273 @@
+{
+
+  "Description" : "The RnD NGS template which which launches  bootstraps a StarCluster controller with ready to launch a Star Cluster Cluster with Grid Engine and NFS.",
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Parameters" : {
+  	"CloudProject" : {
+      "Description" : "RnD Cloud DevOp Activity to associate with",
+      "Type" : "String",
+      "Default" : "RnD Cloud Infrastructure Build",
+      "AllowedValues" : [ "RnD Cloud Infrastructure Build"],
+      "ConstraintDescription" : "must be a valid  RnDCloud DevOp Project"
+    },    
+    "CostCenter" : {
+      "Description" : "Cost Center to associate with",
+      "Type" : "String",
+      "Default" : "740146"
+    },
+    "AccountNumber" : {
+      "Description" : "Twelve digit AWS account number.",
+      "Type" : "String",
+      "NoEcho" : "True",
+      "Default" : "671016219382"
+    },
+    "VPCId" : {
+      "Description" : "Specifies the ID of the VPC that you want to launch the Cluster Controller into",
+      "Type" : "String",
+      "Default" : "vpc-"
+    },
+    "SubnetId" : {
+      "Description" : "Specifies the ID of the subnet that you want to launch the Cluster Controller into",
+      "Type" : "String",
+      "Default" : "subnet-"
+    }, 
+    "NASServerIP" : {
+      "Description" : "Nas Server Mount IP",
+      "Type" : "String",
+      "Default" : "0.0.0.0"
+    }, 
+       
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 Key Pair used to log into the StarCluster controller instance.",
+      "Type" : "String",
+      "Default" : "ngs"
+    },
+    "ClusterSize" : {
+      "Description" : "Number of instances to provision as compute nodes in the cluster.",
+      "Type" : "Number",
+      "Default" : "2"
+    },
+    "InstanceType" : {
+      "Description" : "Instance type to provision as compute nodes in the cluster.",
+      "Type" : "String",
+      "Default" : "m1.small"
+    },
+    "ClusterKeypair" : {
+      "Description" : "Unique name of the new key pair StarCluster will use for cluster access.",
+      "Type" : "String"
+    },
+    "SpotPrice" : {
+      "Description" : "Maximum spot price in USD for the cluster node instance (e.g.: 1.50).",
+      "Type" : "Number",
+      "Default" : "0.8"
+    }
+    
+
+  },
+
+  "Mappings" : {
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "64" },
+      "t2.micro"    : { "Arch" : "64HVM" },
+      "t2.medium"    : { "Arch" : "64HVM" },
+      "m1.small"    : { "Arch" : "64" },
+      "m1.medium"   : { "Arch" : "64" },
+      "m1.large"    : { "Arch" : "64" },
+      "m1.xlarge"   : { "Arch" : "64" },
+      "m2.xlarge"   : { "Arch" : "64" },
+      "m2.2xlarge"  : { "Arch" : "64" },
+      "m2.4xlarge"  : { "Arch" : "64" },
+      "c1.medium"   : { "Arch" : "64" },
+      "c1.xlarge"   : { "Arch" : "64" },
+      "cc1.4xlarge" : { "Arch" : "64HVM" },
+      "cc2.8xlarge" : { "Arch" : "64HVM" },
+      "cg1.4xlarge" : { "Arch" : "64HVM" }
+    },
+
+    "AWSRegionArch2AMI" : {
+      "us-east-1"      : { "32" : "ami-899d49e0", "64" : "ami-999d49f0", "64HVM" : "tbd" }
+    }
+
+  },
+
+  "Resources" : {
+     "ClusterUser" : {
+       "Type" : "AWS::IAM::User"
+     },	
+     "ClusterGroup" : {
+       "Type" : "AWS::IAM::Group"
+     },
+     "ClusterUsers" : {
+       "Type" : "AWS::IAM::UserToGroupAddition",
+       "Properties" : {
+         "GroupName": { "Ref" : "ClusterGroup" },
+         "Users" : [ { "Ref" : "ClusterUser" } ]
+       }
+     },
+     "CFNUserPolicies" : {
+       "Type" : "AWS::IAM::Policy",
+       "Properties" : {
+         "PolicyName" : "ClusterUsers",
+         "PolicyDocument" : {
+           "Statement": [{
+             "Effect"   : "Allow",
+             "Action"   : [
+               "ec2:*", 
+			   "s3:*", 
+			   "cloudformation:DescribeStackResource"
+               ],
+             "Resource" : "*"
+           }]
+         },
+         "Groups" : [{ "Ref" : "ClusterGroup" }]
+       }
+     },
+     "ClusterUserKeys" : {
+       "Type" : "AWS::IAM::AccessKey",
+       "Properties" : {
+         "UserName" : { "Ref": "ClusterUser" }
+       }
+     },
+	 "StarClusterController" : {
+	      "Type" : "AWS::EC2::Instance",
+	      "Properties" : {
+		  "InstanceType" : { "Ref" : "InstanceType" },
+	        "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+                          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
+		    "KeyName" : { "Ref" : "KeyName" },
+		    "NetworkInterfaces"  : [ {
+	          "AssociatePublicIpAddress" : "true",
+	          "DeviceIndex"              : "0",
+	          "DeleteOnTermination"      : "true",
+	          "SubnetId"                 : { "Ref" : "SubnetId" },
+	          "GroupSet"                 : [{ "Ref" : "InstanceSecurityGroup" }]
+        		}
+		    ],
+	        "Tags" : [
+	        	{ "Key" : "Role", "Value" : "Controller"},
+	            { "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "StarClusterController" ]]}  },
+          		{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          		{ "Key" : "VPC", "Value" : { "Ref" : "VPCId" } },
+          		{ "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
+          		{ "Key" : "CostCenter", "Value" : { "Ref" : "CostCenter" } }
+	        ],
+			"UserData" : { "Fn::Base64" : { "Fn::Join" : ["", 
+			           [
+						"#!/bin/sh\n",
+						"set -x\n",
+			            "/opt/aws/bin/cfn-init ", " -s ", { "Ref" : "AWS::StackName" }, " -r StarClusterController ", 
+			              "--access-key=", { "Ref" : "ClusterUserKeys" }, " ", "--secret-key=", { "Fn::GetAtt" : ["ClusterUserKeys", "SecretAccessKey"]}, "\n",
+						"cd /usr/src/pycrypto/pycrypto-2.4; /usr/bin/python setup.py build\n",
+						"cd /usr/src/pycrypto/pycrypto-2.4; /usr/bin/python setup.py install\n",
+						"cd /usr/local/starcluster; /usr/bin/python distribute_setup.py\n",
+						"cd /usr/local/starcluster; /usr/bin/python setup.py install\n",
+  					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.starcluster\n",
+					    "/usr/bin/ruby /home/ec2-user/admin/parser.rb /home/ec2-user/.config/config_template.erb /home/ec2-user/.config/values.yml > /home/ec2-user/.starcluster/config\n",
+					    "/usr/bin/starcluster -c /home/ec2-user/.starcluster/config createkey ", { "Ref" : "ClusterKeypair" }, " -o /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" } ,".rsa", "\n",
+					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n",
+					    "/bin/chmod  0400 /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n"
+						]]}}	
+	      },
+	      "Metadata" : {
+	        "AWS::CloudFormation::Init" : {
+		      "config" : {
+				  "packages" : {
+			           "yum" : {
+			             "python-devel" : [],
+			             "gcc" : [],
+			             "make" : []
+			           }
+	    			},
+				"sources" : {
+					"/usr/src/pycrypto" : "https://ftp.dlitz.net/pub/dlitz/crypto/pycrypto/pycrypto-2.4.tar.gz",
+					"/usr/local/starcluster" : "https://github.com/jtriley/StarCluster/tarball/master"
+				},
+	            "files" : {	            
+	            	"/home/ec2-user/.starcluster/plugins/tagger.py" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/plugins/tagger.py" 
+					},
+					"/home/ec2-user/.starcluster/plugins/glusterfsencrypt.py" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/plugins/glusterfsencrypt.py" 
+					},
+					"/home/ec2-user/.starcluster/plugins/glusterfsnas.py" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/plugins/glusterfsnas.py" 
+					},
+					"/home/ec2-user/.starcluster/plugins/lustre.py" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/plugins/lustre.py" 
+					},
+					"/home/ec2-user/admin/addUsersToStarClusterController.sh" : {
+						"mode" : "000744", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/admin/addUsersToStarClusterController.sh" 
+					},
+					"/home/ec2-user/admin/parser.rb" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/admin/utilities/parser.rb" 
+					},
+					"/home/ec2-user/.config/config_template.erb" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/config/config_template.erb" 
+					},		
+					"/home/ec2-user/.config/values.yml" : {
+						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
+						"content" : { "Fn::Join" : ["", [
+						    "values:\n",
+							"  access_key_id: ", { "Ref" : "ClusterUserKeys" }, "\n",
+							"  secret_access_key: ", { "Fn::GetAtt" : ["ClusterUserKeys", "SecretAccessKey"]}, "\n",
+							"  account_number: ", { "Ref" : "AccountNumber" }, "\n",
+              				"  instance_type: ", { "Ref" : "InstanceType" }, "\n",
+              				"  cluster_size: ", { "Ref" : "ClusterSize" }, "\n",
+             				"  image_id: ", { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+                          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] }, "\n",
+							"  cluster_keypair: ", { "Ref" : "ClusterKeypair" }, "\n",
+							"  subnet_id: " ,{ "Ref" : "SubnetId"}, "\n",
+							"  cloud_project: " ,{ "Ref" : "CloudProject"}, "\n",
+							"  cost_center: " ,{ "Ref" : "CostCenter"}, "\n",
+							"  max_spot_bid_price: ", { "Ref" : "SpotPrice"}, "\n",
+							"  user_local_volume_id: vol-001b9648", "\n",						
+							"  gluster_server_node_ip: ", { "Ref" : "NASServerIP" },"\n",
+							"  gluster_volume_name: glusterfs", "\n",
+							"  gluster_shared_mount_point: ", "/mnt/ngs_glusterfs", "\n",
+							"  lustre_shared_mount_point: ", "/mnt/ngs_lustre", "\n",
+							"  gluster_filesystem_type: ", "glusterfs", "\n"
+							
+
+		             	] ] }
+		        	}
+				}	
+			  }
+			}
+		  }	
+	    },
+
+	 "InstanceSecurityGroup" : {
+	      "Type" : "AWS::EC2::SecurityGroup",
+	      "Properties" : {
+	        "VpcId" : { "Ref" : "VPCId" },
+	        "GroupDescription" : "Enable SSH access via port 22",
+	        "SecurityGroupIngress" : [ {
+	          "IpProtocol" : "tcp",
+	          "FromPort" : "22",
+	          "ToPort" : "22",
+	          "CidrIp" : "0.0.0.0/0"
+	        } ]
+	      }
+	    }
+
+  	},
+
+  "Outputs" : {
+    "InstancePublicDNS" : {
+      "Description" : "Public DNS for the cluster controller instance",
+      "Value" : { "Fn::GetAtt" : [ "StarClusterController", "PublicDnsName" ] }
+    },
+    "AvailabilityZone" : {
+      "Description" : "The Availability Zone in which the newly created EC2 instance was launched",
+      "Value" : { "Fn::GetAtt" : [ "StarClusterController", "AvailabilityZone" ] }
+    }
+  }
+}

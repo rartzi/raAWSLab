@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+# Oct 2 2014 - RA Added Encryption of bricks 
+#
 
 # DEBUG uncomment next line
 set -x
@@ -12,7 +14,11 @@ set -x
 
 # Update to latest version on aws-ec2-apitools
 yum -y install aws-apitools-ec2
-
+#
+# Support Encryption
+# Update to the latest version of cryptsetup package.
+#
+yum -y install cryptsetup
 # Get my instance-id
 MY_INSTANCE_ID=$(curl --silent http://169.254.169.254/latest/meta-data/instance-id)
 
@@ -39,10 +45,26 @@ EOF
 
 PARTITIONS=$(ls /dev/sd?1 | grep -v sda)
 mdadm --create /dev/md/brick --raid-devices=$NUM_DEVS --level=0 --name=brick $PARTITIONS
+# 
+# Support Encryption 
+# Creating the cryptFS
+#
+mkdir -p /root/keystore
+mount /dev/ram1 /root/keystore
+dd if=/dev/urandom of=/root/keystore/keyfile bs=1024 count=4
+chmod 0400 /root/keystore/keyfile
+
+cryptsetup -q luksFormat /dev/md/brick /root/keystore/keyfile
+cryptsetup -d /root/keystore/keyfile luksOpen /dev/md/brick securebrick
+
 mdadm --detail --scan >> /etc/mdadm.conf
-mkfs.xfs -i size=512 /dev/md/brick
+# old None secure mkfs.xfs -i size=512 /dev/md/brick
+mkfs.xfs -i size=512 /dev/mapper/securebrick
+
 mkdir -p /export/$MY_INSTANCE_ID
-echo "/dev/md/brick /export/$MY_INSTANCE_ID xfs noatime,nodiratime 0 0" >> /etc/fstab
+#old None Secure echo "/dev/md/brick /export/$MY_INSTANCE_ID xfs noatime,nodiratime 0 0" >> /etc/fstab
+echo "/dev/mapper/securebrick /export/$MY_INSTANCE_ID xfs noatime,nodiratime 0 0" >> /etc/fstab
+
 mount -v /export/$MY_INSTANCE_ID
 
 # Rebuild initrd to support MD devices
@@ -51,6 +73,7 @@ mkinitrd --force -v /boot/initramfs-`uname -r`.img `uname -r`
 # Fetch Gluster repo and install server software
 wget -P /etc/yum.repos.d http://download.gluster.org/pub/gluster/glusterfs/LATEST/EPEL.repo/glusterfs-epel.repo
 sed -i 's/$releasever/6Server/g' /etc/yum.repos.d/glusterfs-epel.repo
+# Install glusterfs server 
 yum -y install glusterfs-server.x86_64
 modprobe fuse
 # Remove RDMA support (less error messages)

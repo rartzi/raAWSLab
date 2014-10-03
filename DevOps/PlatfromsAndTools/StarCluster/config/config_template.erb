@@ -234,8 +234,8 @@ packages = collectl, openjdk-7-jdk
 [plugin lustre]
 setup_class = lustre.MountLustre
 lustre_export = IP:/scratch
-lustre_mountpoint = /ngs
-lustre_security_group = SecutiryGroupId
+lustre_mountpoint = <%= lustre_shared_mount_point %>
+lustre_security_group = SecutiryGroupName
 
 [plugin GlusterfsClientSetup]
 setup_class = glusterfsnas.GlusterfsClientSetup
@@ -245,6 +245,7 @@ setup_class = glusterfsnas.glusterMount
 server = <%= gluster_server_node_ip %>
 volumes = <%= gluster_volume_name %>
 mountpoint = <%= gluster_shared_mount_point %>
+filesystemtype = <%= gluster_filesystem_type %>
 
 ######################
 ## Built-in Plugins ##

@@ -277,13 +277,13 @@
                 "mode" : "000700",
                 "owner" : "root",
                 "group" : "root",
-                "source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/GlusterFS/tcp-tuning.sh"
+                "source" : "https://s3.amazonaws.com/rdi-devops/Scripts/GlusterFS/tcp-tuning.sh"
               },
               "/root/cfn-setup-gluster.sh" : {
                 "mode" : "000700",
                 "owner" : "root",
                 "group" : "root",
-                "source" : "https://s3.amazonaws.com/RDI-DevOps/Scripts/GlusterFS/cfn-setup-gluster.sh"
+                "source" : "https://s3.amazonaws.com/rdi-devops/Scripts/GlusterFS/cfn-setup-gluster.sh"
               }
             }
           }
