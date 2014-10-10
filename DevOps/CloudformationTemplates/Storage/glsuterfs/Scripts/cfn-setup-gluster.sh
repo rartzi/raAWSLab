@@ -1,10 +1,19 @@
 #!/bin/bash
 #
 # Oct 2 2014 - RA Added Encryption of bricks 
+# Oct 9 2014 - RA added a parameter $1 to determine encrypy / plain option
+#              ./cfn-setup-gluster  encrypt .. 
 #
 
 # DEBUG uncomment next line
 set -x
+if [ $# -eq 0 ]; then
+        echo "No arguments supplied , expected encryp/plain as first argument. default will be encryptd"
+        encrypt="encrypt"
+else
+        echo " will assign the input value: $1"
+        encrypt=$1
+fi
 
 # Load enviroment variables
 . /etc/profile
@@ -14,11 +23,7 @@ set -x
 
 # Update to latest version on aws-ec2-apitools
 yum -y install aws-apitools-ec2
-#
-# Support Encryption
-# Update to the latest version of cryptsetup package.
-#
-yum -y install cryptsetup
+
 # Get my instance-id
 MY_INSTANCE_ID=$(curl --silent http://169.254.169.254/latest/meta-data/instance-id)
 
@@ -46,24 +51,35 @@ EOF
 PARTITIONS=$(ls /dev/sd?1 | grep -v sda)
 mdadm --create /dev/md/brick --raid-devices=$NUM_DEVS --level=0 --name=brick $PARTITIONS
 # 
-# Support Encryption 
-# Creating the cryptFS
-#
-mkdir -p /root/keystore
-mount /dev/ram1 /root/keystore
-dd if=/dev/urandom of=/root/keystore/keyfile bs=1024 count=4
-chmod 0400 /root/keystore/keyfile
-
-cryptsetup -q luksFormat /dev/md/brick /root/keystore/keyfile
-cryptsetup -d /root/keystore/keyfile luksOpen /dev/md/brick securebrick
-
-mdadm --detail --scan >> /etc/mdadm.conf
-# old None secure mkfs.xfs -i size=512 /dev/md/brick
-mkfs.xfs -i size=512 /dev/mapper/securebrick
-
+# Create Export point
 mkdir -p /export/$MY_INSTANCE_ID
-#old None Secure echo "/dev/md/brick /export/$MY_INSTANCE_ID xfs noatime,nodiratime 0 0" >> /etc/fstab
-echo "/dev/mapper/securebrick /export/$MY_INSTANCE_ID xfs noatime,nodiratime 0 0" >> /etc/fstab
+# 
+# Support Encryption
+# Update to the latest version of cryptsetup package.
+#
+if [ "$encrypt" = "encrypt" ]; then
+	echo " Taking the Encryption path"
+	yum -y install cryptsetup
+	# Creating the cryptFS
+	#
+	mkdir -p /root/keystore
+	mount /dev/ram1 /root/keystore
+	dd if=/dev/urandom of=/root/keystore/keyfile bs=1024 count=4
+	chmod 0400 /root/keystore/keyfile
+	cryptsetup -q luksFormat /dev/md/brick /root/keystore/keyfile
+	cryptsetup -d /root/keystore/keyfile luksOpen /dev/md/brick securebrick
+fi
+mdadm --detail --scan >> /etc/mdadm.conf
+if [ "$encrypt" = "encrypt" ]; then
+	echo " Creating Encrypted file system"
+	mkfs.xfs -i size=512 /dev/mapper/securebrick
+	echo "/dev/mapper/securebrick /export/$MY_INSTANCE_ID xfs noatime,nodiratime 0 0" >> /etc/fstab
+else
+	echo " Creating None Encrypted file system"
+	mkfs.xfs -i size=512 /dev/md/brick
+	echo "/dev/md/brick /export/$MY_INSTANCE_ID xfs noatime,nodiratime 0 0" >> /etc/fstab
+fi
+
 
 mount -v /export/$MY_INSTANCE_ID
 
