@@ -8,7 +8,6 @@
       "Description" : "RnD Cloud DevOp Activity to associate with",
       "Type" : "String",
       "Default" : "RnD Cloud Infrastructure Build",
-      "AllowedValues" : [ "RnD Cloud Infrastructure Build"],
       "ConstraintDescription" : "must be a valid  RnDCloud DevOp Project"
     },    
     "CostCenter" : {
@@ -78,7 +77,7 @@
       },
 
     "AWSRegionArch2AMI" : {
-      "us-east-1"      : { "32" : "ami-899d49e0", "64" : "ami-999d49f0", "64HVM" : "ami-7a348512" }
+      "us-east-1"      : { "32" : "ami-899d49e0", "64" : "ami-999d49f0", "64HVM" : "ami-76817c1e" }
     }
 
   },
@@ -125,7 +124,8 @@
 	      "Type" : "AWS::EC2::Instance",
 	      "Properties" : {
 		  "InstanceType" : { "Ref" : "InstanceType" },
-	        "ImageId" : "ami-e565ba8c",
+	        "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+                          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
 		    "KeyName" : { "Ref" : "KeyName" },
 		    "NetworkInterfaces"  : [ {
 	          "AssociatePublicIpAddress" : "true",
@@ -147,7 +147,7 @@
 			           [
 						"#!/bin/sh\n",
 						"set -x\n",
-			            "/opt/aws/bin/cfn-init ", " -s ", { "Ref" : "AWS::StackName" }, " -r StarClusterController ", 
+			            "/opt/aws/bin/cfn-init ", " -v  -s ", { "Ref" : "AWS::StackName" }, " -r StarClusterController ", 
 			              "--access-key=", { "Ref" : "ClusterUserKeys" }, " ", "--secret-key=", { "Fn::GetAtt" : ["ClusterUserKeys", "SecretAccessKey"]}, "\n",
 						"cd /usr/src/pycrypto/pycrypto-2.4; /usr/bin/python setup.py build\n",
 						"cd /usr/src/pycrypto/pycrypto-2.4; /usr/bin/python setup.py install\n",
@@ -212,8 +212,7 @@
 							"  account_number: ", { "Ref" : "AccountNumber" }, "\n",
               				"  instance_type: ", { "Ref" : "InstanceType" }, "\n",
               				"  cluster_size: ", { "Ref" : "ClusterSize" }, "\n",
-             				"  image_id: ", { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
-                          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] }, "\n",
+             				"  image_id: ", "ami-7a348512", "\n",
 							"  cluster_keypair: ", { "Ref" : "ClusterKeypair" }, "\n",
 							"  subnet_id: " ,{ "Ref" : "SubnetId"}, "\n",
 							"  cloud_project: " ,{ "Ref" : "CloudProject"}, "\n",
