@@ -3,6 +3,7 @@
 # Oct 2 2014 - RA Added Encryption of bricks 
 # Oct 9 2014 - RA added a parameter $1 to determine encrypy / plain option
 #              ./cfn-setup-gluster  encrypt .. 
+# Oct 29 2014 - RA adding Tags : Generating a name to the Instane , Generate a ApplicationRole=FileSystemHead , FSType=GlusterFS
 #
 
 # DEBUG uncomment next line
@@ -26,6 +27,13 @@ yum -y install aws-apitools-ec2
 
 # Get my instance-id
 MY_INSTANCE_ID=$(curl --silent http://169.254.169.254/latest/meta-data/instance-id)
+My_INSTANCE_LOCAL_IP=$(curl --silent http://169.254.169.254/latest/meta-data/local-ipv4)
+MY_CFN_STACK_NAME=${cfn_stack_name}
+# Create Instance Type
+ec2-create-tags $MY_INSTANCE_ID  --tag Name="$MY_CFN_STACK_NAME-GlusterFSHead-$My_INSTANCE_LOCAL_IP"
+ec2-create-tags $MY_INSTANCE_ID  --tag "ApplicationRole=NasHead"
+ec2-create-tags $MY_INSTANCE_ID  --tag "FSType=GlusterFS"
+ec2-create-tags $MY_INSTANCE_ID  --tag "MountVolume=glusterfs"
 
 # Format drives (anything that is not sda is made part of a striped LVM volume and used a the brick for the instance)
 DEVS=$(ls /dev/sd? | grep -v sda)
