@@ -48,6 +48,7 @@
       "Type" : "Number",
       "Default" : "2",
       "AllowedValues" : [
+      	"1",
         "2",
         "4",
         "6",
@@ -70,7 +71,7 @@
     "VpcSubnetId" : {
       "Description" : "Id of an exisiting VPC subnet i.e. subnet-ae4ebec4",
       "Type" : "String",
-      "Default" : "subnet-3fb0ad17",
+      "Default" : "subnet-d904ddae",
       "MinLength" : "1",
       "MaxLength" : "64",
       "AllowedPattern" : "subnet-[a-z0-9]*",
@@ -83,7 +84,7 @@
       "MaxLength" : "64",
       "AllowedPattern" : "vpc-[a-z0-9]*",
       "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores.",
-      "Default" : "vpc-56da6733"
+      "Default" : "vpc-46e35823"
     },
     "SubnetAZ" : {
       "Description" : "Availability Zone of the subnet specified by VpcSubnetId",
@@ -611,7 +612,10 @@
               "Resource" : "*",
               "Action" : [
                 "EC2:DescribeInstances",
-                "EC2:DescribeInstanceStatus"
+                "EC2:DescribeInstanceStatus",
+                "EC2:DescribeNetworkInterfaces",
+                "EC2:DescribeTags",
+                "EC2:CreateTags"
               ]
             }
           ]
