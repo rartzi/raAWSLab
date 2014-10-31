@@ -5,7 +5,7 @@
 # Configure the default cluster template to use when starting a cluster
 # defaults to 'smallcluster' defined below. This template should be usable
 # out-of-the-box provided you've configured your keypair correctly
-DEFAULT_TEMPLATE=lustre
+DEFAULT_TEMPLATE=gluster
 
 # enable experimental features for this release
 #ENABLE_EXPERIMENTAL=True
@@ -137,7 +137,7 @@ PLUGINS = tagger, pkginstaller
 # Uncomment to always create a spot cluster when creating a new cluster from
 # this template. The following example will place a $0.50 bid for each spot
 # request.
-SPOT_BID = <%= max_spot_bid_price %>
+#SPOT_BID = <%= max_spot_bid_price %>
 # Uncomment to specify one or more userdata scripts to use when launching
 # cluster instances. Supports cloudinit. All scripts combined must be less than
 # 16KB
@@ -158,7 +158,15 @@ SPOT_BID = <%= max_spot_bid_price %>
 EXTENDS = ngsspotcluster
 PLUGINS = lustre, tagger
 NODE_IMAGE_ID = ami-c586caac
-CLUSTER_SIZE=2
+CLUSTER_SIZE=1
+
+
+[cluster gluster]
+EXTENDS = ngsspotcluster
+PLUGINS = glusterfsClientSetup, glusterMounts, tagger
+NODE_IMAGE_ID = ami-c586caac
+CLUSTER_SIZE=1
+
 
 #############################
 ## Configuring EBS Volumes ##
@@ -237,7 +245,7 @@ lustre_export = IP:/scratch
 lustre_mountpoint = <%= lustre_shared_mount_point %>
 lustre_security_group = SecutiryGroupName
 
-[plugin GlusterfsClientSetup]
+[plugin glusterfsClientSetup]
 setup_class = glusterfsnas.GlusterfsClientSetup
 
 [plugin glusterMounts]
