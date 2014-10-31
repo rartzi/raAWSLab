@@ -1,6 +1,6 @@
 {
 
-  "Description" : "An example template which launches and bootstraps a cluster of eight CC2 EC2 instances for high performance computational tasks using spot pricing. Includes StarCluster, Grid Engine and NFS.",
+  "Description" : "An example template which launches and bootstraps a cluster of  EC2 instances for high performance computational tasks using spot pricing. Includes StarCluster, Grid Engine and NFS.",
   "AWSTemplateFormatVersion" : "2010-09-09",
 
   "Parameters" : {
@@ -24,12 +24,12 @@
     "VPCId" : {
       "Description" : "Specifies the ID of the VPC that you want to launch the Cluster Controller into",
       "Type" : "String",
-      "Default" : "vpc-a92099cc"
+      "Default" : "vpc-46e35823"
     },
     "SubnetId" : {
       "Description" : "Specifies the ID of the subnet that you want to launch the Cluster Controller into",
       "Type" : "String",
-      "Default" : "subnet-f0c41a87"
+      "Default" : "subnet-d904ddae"
     }, 
     "NASServerIP" : {
       "Description" : "Nas Server Mount IP",
@@ -50,7 +50,7 @@
     "InstanceType" : {
       "Description" : "Instance type to provision as compute nodes in the cluster.",
       "Type" : "String",
-      "Default" : "t1.micro"
+      "Default" : "t2.medium"
     },
     "ClusterKeypair" : {
       "Description" : "Unique name of the new key pair StarCluster will use for cluster access.",
@@ -83,6 +83,64 @@
   },
 
   "Resources" : {
+  	"StarClusterControllerRole" : {
+      "Type" : "AWS::IAM::Role",
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Statement" : [
+            {
+              "Effect" : "Allow",
+              "Principal" : {
+                "Service" : [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action" : [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path" : "/"
+      }
+    },
+    "StarClusterControllerPolicies" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "StarClusterController",
+        "PolicyDocument" : {
+          "Statement" : [
+            {
+              "Effect" : "Allow",
+              "Resource" : "*",
+              "Action" : [
+                "EC2:DescribeInstances",
+                "EC2:DescribeInstanceStatus",
+                "EC2:DescribeNetworkInterfaces",
+                "EC2:DescribeTags",
+                "EC2:CreateTags"
+              ]
+            }
+          ]
+        },
+        "Roles" : [
+          {
+            "Ref" : "StarClusterControllerRole"
+          }
+        ]
+      }
+    },
+    "StartClusterInstanceProfile" : {
+      "Type" : "AWS::IAM::InstanceProfile",
+      "Properties" : {
+        "Path" : "/",
+        "Roles" : [
+          {
+            "Ref" : "StarClusterControllerRole"
+          }
+        ]
+      }
+    },
      "ClusterUser" : {
        "Type" : "AWS::IAM::User"
      },	
@@ -123,7 +181,8 @@
 	 "StarClusterController" : {
 	      "Type" : "AWS::EC2::Instance",
 	      "Properties" : {
-		  "InstanceType" : { "Ref" : "InstanceType" },
+	      	"IamInstanceProfile" : { "Ref" : "StartClusterInstanceProfile" },
+		    "InstanceType" : { "Ref" : "InstanceType" },
 	        "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
                           { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
 		    "KeyName" : { "Ref" : "KeyName" },
@@ -153,8 +212,9 @@
 						"cd /usr/src/pycrypto/pycrypto-2.4; /usr/bin/python setup.py install\n",
 						"cd /usr/local/starcluster; /usr/bin/python distribute_setup.py\n",
 						"cd /usr/local/starcluster; /usr/bin/python setup.py install\n",
-  					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.starcluster\n",
+						"cd /home/ec2-user/.admin; /usr/bin/python getGlusterNASHeadIP.py  -o /home/ec2-user/.config/values.yml\n",
 					    "/usr/bin/ruby /home/ec2-user/admin/parser.rb /home/ec2-user/.config/config_template.erb /home/ec2-user/.config/values.yml > /home/ec2-user/.starcluster/config\n",
+					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.starcluster\n",
 					    "/usr/bin/starcluster -c /home/ec2-user/.starcluster/config createkey ", { "Ref" : "ClusterKeypair" }, " -o /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" } ,".rsa", "\n",
 					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n",
 					    "/bin/chmod  0400 /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" },".rsa", "\n"
@@ -195,6 +255,10 @@
 						"mode" : "000744", "owner" : "ec2-user", "group" : "ec2-user",
 						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/admin/addUsersToStarClusterController.sh" 
 					},
+					"/home/ec2-user/admin/getGlusterNASHeadIP.py" : {
+						"mode" : "000744", "owner" : "ec2-user", "group" : "ec2-user",
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/admin/getGlusterNASHeadIP.py" 
+					},
 					"/home/ec2-user/admin/parser.rb" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
 						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/admin/utilities/parser.rb" 
@@ -219,7 +283,6 @@
 							"  cost_center: " ,{ "Ref" : "CostCenter"}, "\n",
 							"  max_spot_bid_price: ", { "Ref" : "SpotPrice"}, "\n",
 							"  user_local_volume_id: vol-001b9648", "\n",						
-							"  gluster_server_node_ip: ", { "Ref" : "NASServerIP" },"\n",
 							"  gluster_volume_name: glusterfs", "\n",
 							"  gluster_shared_mount_point: ", "/mnt/ngs_glusterfs", "\n",
 							"  lustre_shared_mount_point: ", "/mnt/ngs_lustre", "\n",
@@ -236,12 +299,18 @@
 	      "Type" : "AWS::EC2::SecurityGroup",
 	      "Properties" : {
 	        "VpcId" : { "Ref" : "VPCId" },
-	        "GroupDescription" : "Enable SSH access via port 22",
+	        "GroupDescription" : "Enable SSH access via port 22 and all tcp traffic for inside VPC",
 	        "SecurityGroupIngress" : [ {
 	          "IpProtocol" : "tcp",
 	          "FromPort" : "22",
 	          "ToPort" : "22",
 	          "CidrIp" : "0.0.0.0/0"
+	        },
+	        {
+	          "IpProtocol" : "-1",
+	          "FromPort" : "0",
+	          "ToPort" : "65535",
+	          "CidrIp" : "10.136.0.0/16"
 	        } ]
 	      }
 	    }
