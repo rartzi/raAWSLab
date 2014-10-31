@@ -56,26 +56,25 @@ class glusterMount(DefaultClusterSetup):
           	self.glusterfsMount = False    
  
      def run(self, nodes, master, user, user_shell, volumes):
-          conn=master.ssh
-          for node in nodes:
-               nconn=node.ssh
-               log.info("Running plugin on node %s " % node.alias)
+			conn=master.ssh
+			for node in nodes:
+				nconn=node.ssh
+				log.info("Running plugin on node %s " % node.alias)
+               	mounts = node.get_mount_map()
+               	for dev in mounts:
+					if mounts[dev]=="/mnt":
+						nconn.execute("umount /mnt")
+						nconn.execute('mount %s /tmp' % dev.replace("sd","xvd"))
+						nconn.execute('chmod 777 /tmp')
+						time.sleep(5)
  
-               mounts = node.get_mount_map()
-               for dev in mounts:
-                    if mounts[dev]=="/mnt":
-                          nconn.execute("umount /mnt")
-                          nconn.execute('mount %s /tmp' % dev.replace("sd","xvd"))
-                          nconn.execute('chmod 777 /tmp')
-                          time.sleep(5)
- 
-               for volume in self.volumes:
-                    if not nconn.path_exists(self.mountpoint):
-                          log.info("Create mount point %s" % self.mountpoint)
-                          nconn.execute("mkdir -p %s" % self.mountpoint)
+			for volume in self.volumes:
+					if not nconn.path_exists(self.mountpoint):
+						log.info("Create mount point %s" % self.mountpoint)
+						nconn.execute("mkdir -p %s" % self.mountpoint)
 					if self.glusterfsMount:
-                    	log.info("Mount glusterfs volume %s at %s  as glusterfs file system type" % (volume,self.mountpoint))
-                    	nconn.execute('mount -t glusterfs %s:%s %s' % (self.server,volume,self.mountpoint))
+						log.info("Mount glusterfs volume %s at %s  as glusterfs file system type" % (volume,self.mountpoint))
+						nconn.execute('mount -t glusterfs %s:%s %s' % (self.server,volume,self.mountpoint))
                     else:
 						log.info("Mount glusterfs volume %s at %s  as NFS file system type" % (volume,self.mountpoint))
 						nconn.execute('mount -t nfs -o nolock %s:%s %s' % (self.server,volume,self.mountpoint))
@@ -96,12 +95,12 @@ class glusterMount(DefaultClusterSetup):
  
  
           for volume in self.volumes:
-               	if not nconn.path_exists(self.mountpoint):
-                     log.info("Create mount point %s" % self.mountpoint)
-                     nconn.execute("mkdir -p %s" % self.mountpoint)
+				if not nconn.path_exists(self.mountpoint):
+					log.info("Create mount point %s" % self.mountpoint)
+					nconn.execute("mkdir -p %s" % self.mountpoint)
 				if self.glusterfsMount:
-                    	log.info("Mount glusterfs volume %s at %s  as glusterfs file system type" % (volume,self.mountpoint))
-                    	nconn.execute('mount -t glusterfs  %s:%s %s' % (self.server,volume,self.mountpoint))
-                else:
- 						log.info("Mount glusterfs volume %s at %s  as NFS file system type" % (volume,self.mountpoint))
-                    	nconn.execute('mount -t nfs -o nolock %s:%s %s' % (self.server,volume,self.mountpoint))
+					log.info("Mount glusterfs volume %s at %s  as glusterfs file system type" % (volume,self.mountpoint))
+					nconn.execute('mount -t glusterfs  %s:%s %s' % (self.server,volume,self.mountpoint))
+				else:
+					log.info("Mount glusterfs volume %s at %s  as NFS file system type" % (volume,self.mountpoint))
+					nconn.execute('mount -t nfs -o nolock %s:%s %s' % (self.server,volume,self.mountpoint))
