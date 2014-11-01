@@ -212,7 +212,7 @@
 						"cd /usr/src/pycrypto/pycrypto-2.4; /usr/bin/python setup.py install\n",
 						"cd /usr/local/starcluster; /usr/bin/python distribute_setup.py\n",
 						"cd /usr/local/starcluster; /usr/bin/python setup.py install\n",
-						"cd /home/ec2-user/.admin; /usr/bin/python getGlusterNASHeadIP.py  -o /home/ec2-user/.config/values.yml\n",
+						"cd /home/ec2-user/.admin; /usr/bin/python getNASHeadIP.py  -o /home/ec2-user/.config/values.yml " , "-v ", {"Ref" : "VPCId"}, "\n",
 					    "/usr/bin/ruby /home/ec2-user/admin/parser.rb /home/ec2-user/.config/config_template.erb /home/ec2-user/.config/values.yml > /home/ec2-user/.starcluster/config\n",
 					    "/bin/chown ec2-user:ec2-user -R /home/ec2-user/.starcluster\n",
 					    "/usr/bin/starcluster -c /home/ec2-user/.starcluster/config createkey ", { "Ref" : "ClusterKeypair" }, " -o /home/ec2-user/.ssh/", { "Ref" : "ClusterKeypair" } ,".rsa", "\n",
@@ -255,9 +255,9 @@
 						"mode" : "000744", "owner" : "ec2-user", "group" : "ec2-user",
 						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/admin/addUsersToStarClusterController.sh" 
 					},
-					"/home/ec2-user/admin/getGlusterNASHeadIP.py" : {
+					"/home/ec2-user/admin/getNASHeadIP.py" : {
 						"mode" : "000744", "owner" : "ec2-user", "group" : "ec2-user",
-						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/admin/getGlusterNASHeadIP.py" 
+						"source" : "https://s3.amazonaws.com/rdi-devops/Scripts/StarCluster/admin/getNASHeadIP.py" 
 					},
 					"/home/ec2-user/admin/parser.rb" : {
 						"mode" : "000644", "owner" : "ec2-user", "group" : "ec2-user",
