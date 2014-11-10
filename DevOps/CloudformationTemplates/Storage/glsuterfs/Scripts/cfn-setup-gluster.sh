@@ -172,14 +172,15 @@ if [ $VPC_TEST -eq 0 ]; then
       echo $TIMESTAMP
     }
     # Saftey check to make sure a 2nd master is not created later in the life of the stack
-    MY_LAUNCH_TIME=$(timestamp_to_seconds $(ec2_describe_stack | grep running | grep ${MY_INSTANCE_ID} | awk '{print $11}'))
-    OTHERS_LAUNCH_TIME=$(timestamp_to_seconds $(ec2_describe_stack | grep running | grep -v ${MY_INSTANCE_ID} | awk '{print $11}' | tail -1))
-    DELTA=$((MY_LAUNCH_TIME - OTHERS_LAUNCH_TIME))
-    if [ $DELTA -gt 901 ]; then
-      echo "This is a new master but the other instances have already been running for over 15 minutes!"
-      echo "It is most likely a new launch from auto-scaling and should be manually added."
-      exit
-    fi
+    # RA: Removing this check till fully understod how 2nd master launch time is determined.
+    # MY_LAUNCH_TIME=$(timestamp_to_seconds $(ec2_describe_stack | grep running | grep ${MY_INSTANCE_ID} | awk '{print $11}'))
+    # OTHERS_LAUNCH_TIME=$(timestamp_to_seconds $(ec2_describe_stack | grep running | grep -v ${MY_INSTANCE_ID} | awk '{print $11}' | tail -1))
+    # DELTA=$((MY_LAUNCH_TIME - OTHERS_LAUNCH_TIME))
+    # if [ $DELTA -gt 901 ]; then
+    #   echo "This is a new master but the other instances have already been running for over 15 minutes!"
+    #   echo "It is most likely a new launch from auto-scaling and should be manually added."
+    #   exit
+    # fi
 
     # This is the sudo master and should probe the other hosts
     OTHER_HOST_IPS=$(ec2_describe_stack | grep running | grep -v ${MY_INSTANCE_ID} | awk '{print $18}')
