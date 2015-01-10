@@ -1,0 +1,429 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "AWS CloudFormation Template to create a multi Tiered  RnD Cloud Virtual Data Center with Public , DMZ and Private Subnets. \n The public subnets are provided with contains a NAT device for internet access from the private subnet.  A bastion host should  be created in the Public Subnet to allow SSH access to the hosts in the private subnet.\n You will be billed for the AWS resources used if you create a stack from this template.",
+
+"Parameters" : {
+  
+    "RnDCloudRegion" : {
+      "Description" : "Provide a region to launch VPC in.",
+      "Type" : "String",
+      "Default" : "us-east-1",
+      "AllowedValues" : [ "us-east-1","EUIrland","APSingapure"],
+      "ConstraintDescription" : "must be a valid AZ RnDCloud VPC Regions"
+    },
+    
+    "CloudProject" : {
+      "Description" : "RnD Cloud DevOp Activity to associate with",
+      "Type" : "String",
+      "Default" : "RnD Cloud Infrastructure Build",
+      "AllowedValues" : [ "RnD Cloud Infrastructure Build"],
+      "ConstraintDescription" : "must be a valid  RnDCloud DevOp Project"
+    },
+    
+    "CostCenter" : {
+      "Description" : "Cost Center to associate with",
+      "Type" : "String",
+      "Default" : "RnDCloud-Operation"
+    },
+
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
+      "Type" : "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
+      "Default" : "starkey",
+      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
+    },
+
+    "SSHFrom" : {
+      "Description" : "Lockdown SSH access to the bastion host (default can be accessed from anywhere)",
+      "Type" : "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default" : "0.0.0.0/0",
+      "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
+    },
+
+    "EC2InstanceType" : {
+      "Description" : "EC2 instance type",
+      "Type" : "String",
+      "Default" : "m1.small",
+      "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    }
+  },
+
+"Mappings" : {
+
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "64" },
+      "m1.small"    : { "Arch" : "64" },
+      "m1.medium"   : { "Arch" : "64" },
+      "m1.large"    : { "Arch" : "64" },
+      "m1.xlarge"   : { "Arch" : "64" },
+      "m2.xlarge"   : { "Arch" : "64" },
+      "m2.2xlarge"  : { "Arch" : "64" },
+      "m2.4xlarge"  : { "Arch" : "64" },
+      "c1.medium"   : { "Arch" : "64" },
+      "c1.xlarge"   : { "Arch" : "64" },
+      "cc1.4xlarge" : { "Arch" : "64Cluster" },
+      "cc2.8xlarge" : { "Arch" : "64Cluster" },
+      "cg1.4xlarge" : { "Arch" : "64GPU" }
+    },
+
+    "AWSRegionArch2AMI" : {
+      "us-east-1"      : { "32" : "ami-a0cd60c9", "64" : "ami-aecd60c7", "64Cluster" : "ami-a8cd60c1",      "64GPU" : "ami-eccf6285" },
+      "us-west-2"      : { "32" : "ami-46da5576", "64" : "ami-48da5578", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
+      "us-west-1"      : { "32" : "ami-7d4c6938", "64" : "ami-734c6936", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
+      "eu-west-1"      : { "32" : "ami-61555115", "64" : "ami-6d555119", "64Cluster" : "ami-67555113",      "64GPU" : "NOT_YET_SUPPORTED" },
+      "ap-southeast-1" : { "32" : "ami-220b4a70", "64" : "ami-3c0b4a6e", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
+      "ap-northeast-1" : { "32" : "ami-2a19aa2b", "64" : "ami-2819aa29", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
+      "sa-east-1"      : { "32" : "ami-f836e8e5", "64" : "ami-fe36e8e3", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" }
+    },
+ 
+    "RnDCloudVPCConfig" :{
+    	"us-east-1" : { "CIDR" : "10.136.0.0/16" },
+    	"EUIrland" : { "CIDR" : "10.200.0.0/16" },
+    	"APSingapure" : { "CIDR" : "10.58.0.0/16" }    	
+    },
+    
+    "RnDCloudSubnets" :{
+    	"us-east-1" : 	{ "Public" : ["10.136.8.0/21", "10.136.16.0/21", "10.136.24.0/21" ]  , "DMZ" :["10.136.64.0/21", "10.136.72.0/21", "10.136.80.0/21"], "Private" : ["10.136.120.0/21", "10.136.144.0/21", "10.136.168.0/21"]},
+    	"EUIrland" : 	{ "Public" : ["10.200.8.0/21", "10.200.16.0/21", "10.200.24.0/21" ] , "DMZ" :["10.200.64.0/21", "10.200.72.0/21", "10.200.80.0/21"], "Private" : ["10.200.120.0/21", "10.200.144.0/21", "10.200.168.0/21"]  },
+    	"APSingapure" : { "Public" : ["10.58.8.0/21", "10.58.16.0/21", "10.58.24.0/21"] , "DMZ" :["10.58.64.0/21", "10.58.72.0/21", "10.58.80.0/21"], "Private" : ["10.58.120.0/21", "10.58.144.0/21", "10.58.168.0/21"] }    	
+    },
+    
+    "AWSNATAMI" : {
+      "us-east-1"      : { "AMI" : "ami-54cf5c3d" },
+      "us-west-2"      : { "AMI" : "ami-8e27adbe" },
+      "us-west-1"      : { "AMI" : "ami-b63210f3" },
+      "eu-west-1"      : { "AMI" : "ami-3c5f5748" },
+      "ap-southeast-1" : { "AMI" : "ami-ba7538e8" },
+      "ap-southeast-2" : { "AMI" : "ami-b6df4e8c" },
+      "ap-northeast-1" : { "AMI" : "ami-5d7dfa5c" },
+      "sa-east-1"      : { "AMI" : "ami-89c81394" }
+    }
+    
+  },
+"Resources" : {
+
+"VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "EnableDnsSupport" : "true",
+        "EnableDnsHostnames" : "true",
+        "CidrBlock" : { "Fn::FindInMap" : [ "RnDCloudVPCConfig", { "Ref" : "RnDCloudRegion" }, "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Name", "Value" : {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , { "Ref" : "RnDCloudRegion" } ]]} },
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          { "Key" : "VPC", "Value" : { "Ref" : "RnDCloudRegion" } },
+          { "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
+          { "Key" : "CostCenter", "Value" : { "Ref" : "CostCenter" } }
+        ]
+      }
+    },  
+    "PublicSubnet1" : {
+  		"Type" : "AWS::EC2::Subnet",
+  		"Properties" : {
+			"AvailabilityZone" : { "Fn::Select" : [ "0", { "Fn::GetAZs" : {"Ref" : "AWS::Region"} } ] },
+    		"VpcId" :  { "Ref" : "VPC" },
+    		"CidrBlock" : { "Fn::Select" : [ "0" , { "Fn::FindInMap" : [ "RnDCloudSubnets", { "Ref" : "RnDCloudRegion" }, "Public" ]} ]},
+  			"Tags" : [
+          		{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "PublicSubnet-AvailabilityZone1" ]]}  },
+          		{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          		{ "Key" : "VPC", "Value" : { "Ref" : "VPC" } },
+          		{ "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
+          		{ "Key" : "CostCenter", "Value" : { "Ref" : "CostCenter" } }
+        	]
+        }
+	},
+    "PrivateSubnet1" : {
+  		"Type" : "AWS::EC2::Subnet",
+  		"Properties" : {
+			"AvailabilityZone" : { "Fn::Select" : [ "0", { "Fn::GetAZs" : {"Ref" : "AWS::Region"} } ] },
+    		"VpcId" :  { "Ref" : "VPC" },
+    		"CidrBlock" : { "Fn::Select" : [ "0" , { "Fn::FindInMap" : [ "RnDCloudSubnets", { "Ref" : "RnDCloudRegion" }, "Private" ]} ]},
+  			"Tags" : [
+          		{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "PrivateSubnet-AvailabilityZone1" ]]}  },
+          		{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          		{ "Key" : "VPC", "Value" : { "Ref" : "VPC" } },
+          		{ "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
+          		{ "Key" : "CostCenter", "Value" : { "Ref" : "CostCenter" } }
+        	]
+        }
+	},
+	
+"InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+  			"Tags" : [
+          		{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "Internet-Gateway" ]]}  },
+          		{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          		{ "Key" : "VPC", "Value" : { "Ref" : "VPC" } },
+          		{ "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
+          		{ "Key" : "CostCenter", "Value" : { "Ref" : "CostCenter" } }
+        	]
+      }
+    },
+    "GatewayToInternet" : {
+       "Type" : "AWS::EC2::VPCGatewayAttachment",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+         "InternetGatewayId" : { "Ref" : "InternetGateway" }
+       }
+    },
+
+"PublicRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+  			"Tags" : [
+          		{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "PublicRouteTable" ]]}  },
+          		{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          		{ "Key" : "VPC", "Value" : { "Ref" : "VPC" } },
+          		{ "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
+          		{ "Key" : "CostCenter", "Value" : { "Ref" : "CostCenter" } }
+        	]
+      }
+    },
+"PublicRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "GatewayToInternet",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PublicRouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : { "Ref" : "InternetGateway" }
+      }
+    },
+"PublicSubne1tRouteTableAssociation" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet1" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+      }
+    },
+
+"PublicNetworkAcl" : {
+      "Type" : "AWS::EC2::NetworkAcl",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+  			"Tags" : [
+          		{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "PublicNetworkACL" ]]}  },
+          		{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          		{ "Key" : "VPC", "Value" : { "Ref" : "VPC" } },
+          		{ "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
+          		{ "Key" : "CostCenter", "Value" : { "Ref" : "CostCenter" } }
+        	]
+      }
+    },
+"InboundDNS53PublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "100",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : { "From" : "53", "To" : "53" }
+      }
+    },
+"InboundHTTP8080PublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "105",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : { "From" : "8080", "To" : "8080" }
+      }
+    },    
+"InboundHTTPSPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "110",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : { "From" : "443", "To" : "443" }
+      }
+    },
+"InboundSSHPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "115",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "SSHFrom" },
+        "PortRange" : { "From" : "22", "To" : "22" }
+      }
+    },
+"InboundEmphemeralPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "120",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : { "From" : "1024", "To" : "65535" }
+      }
+    },
+"OutboundPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "125",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : { "From" : "0", "To" : "65535" }
+      }
+    },
+"PublicSubnet1NetworkAclAssociation" : {
+      "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet1" },
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" }
+      }
+    },
+	
+
+"PrivateRouteTableAvaiabilityZone1" : {
+    "Type" : "AWS::EC2::RouteTable",
+    "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+		"Tags" : [
+          	{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "PrivateRouteTableAz1" ]]}  },
+          	{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          	{ "Key" : "VPC", "Value" : { "Ref" : "VPC" } },
+          	{ "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
+          	{ "Key" : "CostCenter", "Value" : { "Ref" : "CostCenter" } }
+    	]}
+},
+"PrivateRouteAvaiabilityZone1" : {
+    "Type" : "AWS::EC2::Route",
+    "Properties" : {
+    "RouteTableId" : { "Ref" : "PrivateRouteTableAvaiabilityZone1" },
+    "DestinationCidrBlock" : "0.0.0.0/0",
+    "InstanceId" : { "Ref" : "NATDevicePrivateSubnetAZ1" }
+	}
+},
+"PrivateSubneAz1tRouteTableAssociation" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PrivateSubnet1" },
+        "RouteTableId" : { "Ref" : "PrivateRouteTableAvaiabilityZone1" }
+      }
+    },
+
+"NATRole": {
+       "Type": "AWS::IAM::Role",
+       "Properties": {
+          "AssumeRolePolicyDocument": {
+             "Statement": [ {
+                "Effect": "Allow",
+                "Principal": {
+                   "Service": [ "ec2.amazonaws.com" ]
+                },
+                "Action": [ "sts:AssumeRole" ]
+             } ]
+          },
+          "Path": "/",
+          "Policies": [ {
+             "PolicyName": "NAT_Takeover",
+             "PolicyDocument": {
+                "Statement": [ {
+                   "Effect": "Allow",
+                   "Action": [
+                        "ec2:DescribeInstances",
+			            "ec2:DescribeRouteTables",
+                        "ec2:CreateRoute",
+                        "ec2:ReplaceRoute",
+                        "ec2:StartInstances",
+                        "ec2:StopInstances"
+                   ],
+                   "Resource": "*"
+                } ]
+             }
+             } ]
+          }
+    },
+"NATRoleProfile": {
+       "Type": "AWS::IAM::InstanceProfile",
+       "Properties": {
+          "Path": "/",
+          "Roles": [ {
+             "Ref": "NATRole"
+          } ]
+       }
+    },
+"NATDevicePrivateSubnetAZ1" : {
+        "Type" : "AWS::EC2::Instance",
+        "Properties" : {
+          "InstanceType" : { "Ref" : "EC2InstanceType" },
+          "IamInstanceProfile" : { "Ref" : "NATRoleProfile" },
+          "KeyName" : { "Ref" : "KeyName" },
+          "SourceDestCheck" : "false",
+           "ImageId" : { "Fn::FindInMap" : [ "AWSNATAMI", { "Ref" : "AWS::Region" } , "AMI" ] },
+	       "NetworkInterfaces" : [{
+	          "AssociatePublicIpAddress" : "true",
+	          "DeviceIndex"              : "0",
+	          "DeleteOnTermination"      : "true",
+	          "SubnetId"                 : { "Ref" : "PublicSubnet1" },
+	          "GroupSet"                 : [{ "Ref" : "NATSecurityGroup" }]
+        	}], 			
+  			
+  			"Tags" : [
+          		{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "NATDevicePrivateSubnetAZ1" ]]}  },
+          		{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          		{ "Key" : "VPC", "Value" : { "Ref" : "VPC" } },
+          		{ "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
+          		{ "Key" : "CostCenter", "Value" : { "Ref" : "CostCenter" } }
+        	] 
+        }
+      },
+"NATSecurityGroup" : {
+        "Type" : "AWS::EC2::SecurityGroup",
+        "Properties" : {
+          "GroupDescription" : "Enable internal access to the staging NAT device",
+          "VpcId" : { "Ref" : "VPC" },
+          "SecurityGroupIngress" : [
+             	{ "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0"} ,
+             	{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0"} ,
+             	{ "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "0.0.0.0/0"} ],
+          "SecurityGroupEgress" : [
+             	{ "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0"} ,
+             	{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0"} ,
+            	{ "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "0.0.0.0/0"} ,
+             	{ "IpProtocol" : "udp", "FromPort" : "53", "ToPort" : "53", "CidrIp" : "0.0.0.0/0"} ]
+        }
+      } 
+      
+},   
+"Outputs" : {
+    "VPCId" : {
+      "Description" : "VPCId of the newly created VPC",
+      "Value" :  { "Ref" : "VPC" }
+    },
+ 	"PublicSubnetId" : {
+      "Description" : "Public Subnet - Availability Zone 1 Id",
+      "Value" :  { "Ref" : "PublicSubnet1" }
+    },
+    "PrivateSubnetAz1Id" : {
+      "Description" : "Private Subnet - Availability Zone 1 Id",
+      "Value" :  { "Ref" : "PrivateSubnet1" }
+    }
+  }
+}
