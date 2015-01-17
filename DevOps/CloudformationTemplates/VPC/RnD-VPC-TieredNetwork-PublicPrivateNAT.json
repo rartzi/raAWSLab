@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "AWS CloudFormation Template to create a multi Tiered  RnD Cloud Virtual Data Center with a Public and a Private Subnets. \n The public subnets are provided with contains a NAT device for internet access from the private subnet.  A bastion host should  be created in the Public Subnet to allow SSH access to the hosts in the private subnet.\n You will be billed for the AWS resources used if you create a stack from this template.",
+  "Description" : "AWS  CloudFormation Template to create a multi Tiered  RnD Cloud Virtual Data Center with a Public and a Private Subnets. \n The public subnets are provided with contains a NAT device for internet access from the private subnet.  A bastion host should  be created in the Public Subnet to allow SSH access to the hosts in the private subnet.\n You will be billed for the AWS resources used if you create a stack from this template.",
 
 "Parameters" : {
   
