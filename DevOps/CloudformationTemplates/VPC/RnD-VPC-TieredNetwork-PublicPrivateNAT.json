@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "AWS CloudFormation Template to create a multi Tiered  RnD Cloud Virtual Data Center with Public , DMZ and Private Subnets. \n The public subnets are provided with contains a NAT device for internet access from the private subnet.  A bastion host should  be created in the Public Subnet to allow SSH access to the hosts in the private subnet.\n You will be billed for the AWS resources used if you create a stack from this template.",
+  "Description" : "AWS CloudFormation Template to create a multi Tiered  RnD Cloud Virtual Data Center with a Public and a Private Subnets. \n The public subnets are provided with contains a NAT device for internet access from the private subnet.  A bastion host should  be created in the Public Subnet to allow SSH access to the hosts in the private subnet.\n You will be billed for the AWS resources used if you create a stack from this template.",
 
 "Parameters" : {
   
@@ -28,17 +28,12 @@
     },
 
     "KeyName" : {
-      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
-      "Type" : "String",
-      "MinLength": "1",
-      "MaxLength": "64",
-      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
-      "Default" : "starkey",
-      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH to the NAT Device",
+      "Type" : "AWS::EC2::KeyPair::KeyName"
     },
 
     "SSHFrom" : {
-      "Description" : "Lockdown SSH access to the bastion host (default can be accessed from anywhere)",
+      "Description" : "Lockdown Public Network ACL SSH access (default can be accessed from anywhere)",
       "Type" : "String",
       "MinLength": "9",
       "MaxLength": "18",
@@ -48,14 +43,13 @@
     },
 
     "EC2InstanceType" : {
-      "Description" : "EC2 instance type",
+      "Description" : "NAT Device instance type",
       "Type" : "String",
-      "Default" : "m1.small",
-      "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+      "Default" : "m1.medium",
+      "AllowedValues" : [ "m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","c1.medium","c1.xlarge","c3.large","c3.xlarge","c3.8xlarge"],
       "ConstraintDescription" : "must be a valid EC2 instance type."
     }
   },
-
 "Mappings" : {
 
     "AWSInstanceType2Arch" : {
@@ -98,13 +92,13 @@
     
     "AWSNATAMI" : {
       "us-east-1"      : { "AMI" : "ami-224dc94a" },
-      "us-west-2"      : { "AMI" : "" },
-      "us-west-1"      : { "AMI" : "" },
-      "eu-west-1"      : { "AMI" : "" },
-      "ap-southeast-1" : { "AMI" : "" },
-      "ap-southeast-2" : { "AMI" : "" },
-      "ap-northeast-1" : { "AMI" : "" },
-      "sa-east-1"      : { "AMI" : "" }
+      "us-west-2"      : { "AMI" : "ami-030f4133" },
+      "us-west-1"      : { "AMI" : "ami-7850793d" },
+      "eu-west-1"      : { "AMI" : "ami-30913f47" },
+      "ap-southeast-1" : { "AMI" : "ami-70a38222" },
+      "ap-southeast-2" : { "AMI" : "ami-0154c73b" },
+      "ap-northeast-1" : { "AMI" : "ami-11d6e610" },
+      "sa-east-1"      : { "AMI" : "ami-9122968c" }
     }
     
   },
@@ -289,25 +283,37 @@
         "Egress" : "false",
         "CidrBlock" : "0.0.0.0/0",
         "PortRange" : { "From" : "1024", "To" : "65535" }
-      }
-    },
-"OutboundHTTP80PublicNetworkAclEntry" : {
+        }
+      },
+"InboundDNSPublicNetworkAclEntry" : {
       "Type" : "AWS::EC2::NetworkAclEntry",
       "Properties" : {
         "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
-        "RuleNumber" : "200",
+        "RuleNumber" : "125",
         "Protocol" : "6",
         "RuleAction" : "allow",
-        "Egress" : "true",
+        "Egress" : "false",
         "CidrBlock" : "0.0.0.0/0",
-        "PortRange" : { "From" : "80", "To" : "80" }
+        "PortRange" : { "From" : "53", "To" : "53" }
+      }
+    },
+"InboundNTPPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "130",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : { "From" : "123", "To" : "123" }
       }
     },
 "OutboundPublicNetworkAclEntry" : {
       "Type" : "AWS::EC2::NetworkAclEntry",
       "Properties" : {
         "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
-        "RuleNumber" : "205",
+        "RuleNumber" : "200",
         "Protocol" : "6",
         "RuleAction" : "allow",
         "Egress" : "true",
@@ -321,8 +327,7 @@
         "SubnetId" : { "Ref" : "PublicSubnet1" },
         "NetworkAclId" : { "Ref" : "PublicNetworkAcl" }
       }
-    },
-	
+    },	
 
 "PrivateRouteTableAvaiabilityZone1" : {
     "Type" : "AWS::EC2::RouteTable",
@@ -341,7 +346,7 @@
     "Properties" : {
     "RouteTableId" : { "Ref" : "PrivateRouteTableAvaiabilityZone1" },
     "DestinationCidrBlock" : "0.0.0.0/0",
-    "InstanceId" : { "Ref" : "NATDevicePrivateSubnetAZ1" }
+    "InstanceId" : { "Ref" : "NATDeviceForPrivateSubnetAZ1" }
 	}
 },
 "PrivateSubneAz1tRouteTableAssociation" : {
@@ -393,7 +398,7 @@
           } ]
        }
     },
-"NATDevicePrivateSubnetAZ1" : {
+"NATDeviceForPrivateSubnetAZ1" : {
         "Type" : "AWS::EC2::Instance",
         "Properties" : {
           "InstanceType" : { "Ref" : "EC2InstanceType" },
@@ -407,10 +412,9 @@
 	          "DeleteOnTermination"      : "true",
 	          "SubnetId"                 : { "Ref" : "PublicSubnet1" },
 	          "GroupSet"                 : [{ "Ref" : "NATSecurityGroup" }]
-        	}], 			
-  			
-  			"Tags" : [
-          		{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "NATDevicePrivateSubnetAZ1" ]]}  },
+        	}], 						
+  		   "Tags" : [
+          		{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "NATDeviceForPrivateSubnetAZ1" ]]}  },
           		{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
           		{ "Key" : "VPC", "Value" : { "Ref" : "VPC" } },
           		{ "Key" : "CloudProject", "Value" : { "Ref" : "CloudProject" } },
@@ -426,16 +430,21 @@
           "SecurityGroupIngress" : [
              	{ "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0"} ,
              	{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0"} ,
+             	{ "IpProtocol" : "tcp", "FromPort" : "53", "ToPort" : "53", "CidrIp" : "0.0.0.0/0"} ,
+             	{ "IpProtocol" : "tcp", "FromPort" : "123", "ToPort" : "123", "CidrIp" : "0.0.0.0/0"} ,
              	{ "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "0.0.0.0/0"} ],
           "SecurityGroupEgress" : [
              	{ "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0"} ,
              	{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0"} ,
-            	{ "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "0.0.0.0/0"} ,
-             	{ "IpProtocol" : "udp", "FromPort" : "53", "ToPort" : "53", "CidrIp" : "0.0.0.0/0"} ]
+            	{ "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "53",  "CidrIp" : "0.0.0.0/0"} ,
+             	{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "123", "CidrIp" : "0.0.0.0/0"} ,
+             	{ "IpProtocol" : "udp", "FromPort" : "53", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"} ],
+          "Tags" : [
+          		{ "Key" : "Name", "Value" :   {"Fn::Join" : [ "-" , [{ "Ref" : "AWS::StackName" } , "SG-NATDeviceForPrivateSubnetAZ1" ]]}  }        	] 
         }
-      } 
-      
-},   
+      }       
+}, 
+
 "Outputs" : {
     "VPCId" : {
       "Description" : "VPCId of the newly created VPC",
